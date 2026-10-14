@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Prepare or extend a token-budgeted local base pretraining corpus for ESM.
+Prepare or extend a token-budgeted local base pretraining corpus for EBFM.
 
-The output format intentionally matches esm's FineWeb parquet layout:
+The output format intentionally matches ebfm's FineWeb parquet layout:
   <repo>/data/<dataset>/shard_00000.parquet
   <repo>/data/<dataset>/shard_00001.parquet
   ...
 
-Each parquet file contains a single "text" column. The existing esm
+Each parquet file contains a single "text" column. The existing ebfm
 dataloader uses all sorted shards except the last for train, and the last shard
 for validation.
 """
@@ -179,7 +179,7 @@ def parse_args() -> argparse.Namespace:
         "--fineweb-shards",
         type=int,
         default=0,
-        help="FineWeb shards to fetch (0 = esm.dataset default); the last one is validation",
+        help="FineWeb shards to fetch (0 = ebfm.dataset default); the last one is validation",
     )
     parser.add_argument(
         "--fineweb-workers", type=int, default=4, help="parallel FineWeb downloads"
@@ -234,14 +234,14 @@ def check_free_space(path: Path, min_free_gb: float) -> None:
 
 
 def load_tokenizer(repo_root: Path):
-    from esm.config import bootstrap_assets
+    from ebfm.config import bootstrap_assets
 
     bootstrap_assets("train", fallback=repo_root / "data")
-    from esm.tokenizer import get_tokenizer
+    from ebfm.tokenizer import get_tokenizer
 
     tokenizer = get_tokenizer()
     bos = tokenizer.get_bos_token_id()
-    log(f"Loaded tokenizer from {os.environ['ESM_BASE_DIR']}/tokenizer (bos={bos})")
+    log(f"Loaded tokenizer from {os.environ['EBFM_BASE_DIR']}/tokenizer (bos={bos})")
     return tokenizer, bos
 
 
@@ -923,7 +923,7 @@ def main() -> None:
         if dataset_name == "fineweb":
             # FineWeb-Edu shards are already in the target layout, so they only
             # need downloading (no repackaging or token budgeting).
-            from esm.dataset import FINEWEB_DEFAULT_SHARDS, download_fineweb
+            from ebfm.dataset import FINEWEB_DEFAULT_SHARDS, download_fineweb
 
             download_fineweb(
                 num_shards=args.fineweb_shards or FINEWEB_DEFAULT_SHARDS,

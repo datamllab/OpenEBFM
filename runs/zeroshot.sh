@@ -51,7 +51,7 @@ cd "${PROJECT_ROOT}"
 mkdir -p "${RUN_DIR}" "${LOG_ROOT}" "${CACHE_DIR}"
 exec > >(tee -a "${LOG_ROOT}/zeroshot_node${NODE_RANK}.log") 2>&1
 
-SLIM_CHECKPOINT="${CACHE_DIR}/esm_checkpoint_slim.ckpt"
+SLIM_CHECKPOINT="${CACHE_DIR}/ebfm_checkpoint_slim.ckpt"
 CHECKPOINT_READY="${RUN_DIR}/.zeroshot_checkpoint_ready_${JOB_ID}"
 CHECKPOINT_FAILED="${RUN_DIR}/.zeroshot_checkpoint_failed_${JOB_ID}"
 FINAL_READY="${RUN_DIR}/.zeroshot_done_${JOB_ID}"

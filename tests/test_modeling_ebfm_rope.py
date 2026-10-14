@@ -1,6 +1,6 @@
 import torch
 
-from esm.modeling_esm import apply_rotary_emb, precompute_freqs_cis
+from ebfm.modeling_ebfm import apply_rotary_emb, precompute_freqs_cis
 
 
 def test_rotary_complex_fp32_and_real_paths_match_for_bf16_inputs():

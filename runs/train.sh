@@ -11,7 +11,7 @@ read -r -a EXTRA_ARGS <<< "${TRAIN_ARGS:-}"
 TRAIN_ARGS=(--config "${CONFIG_FILE}" "${EXTRA_ARGS[@]}" "$@")
 
 # Export only what the caller explicitly set. Defaulting to 1 here would shadow
-# the YAML values that esm/config.py falls back to.
+# the YAML values that ebfm/config.py falls back to.
 if [[ -n "${NODE_COUNT:-}" ]]; then export NODE_COUNT; fi
 if [[ -n "${PROC_PER_NODE:-}" ]]; then export PROC_PER_NODE; fi
 

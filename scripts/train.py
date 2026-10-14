@@ -9,7 +9,7 @@ import torch
 
 
 try:
-    from esm.config import bootstrap_assets
+    from ebfm.config import bootstrap_assets
 
     bootstrap_assets("train")
 except Exception:
@@ -17,7 +17,7 @@ except Exception:
 
 
 try:
-    from esm.tokenizer import RustBPETokenizer
+    from ebfm.tokenizer import RustBPETokenizer
 
     torch.serialization.add_safe_globals([RustBPETokenizer])
 except Exception:
@@ -50,10 +50,11 @@ except ImportError:
         DeepSpeedStrategy = None
     from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
-from esm import logger as text_logger
-from esm.disk_aware_checkpoint import DiskAwareCheckpoint, DiskAwareFinalCheckpoint
-from esm.config import parse_with_config, print_resolved_config
-from esm.modeling_esm import init_wandb_watch, load_checkpoint, model_sizes
+from ebfm import logger as text_logger
+from ebfm.common import get_base_dir
+from ebfm.disk_aware_checkpoint import DiskAwareCheckpoint, DiskAwareFinalCheckpoint
+from ebfm.config import parse_with_config, print_resolved_config
+from ebfm.modeling_ebfm import init_wandb_watch, load_checkpoint, model_sizes
 
 
 @rank_zero_only
@@ -238,9 +239,52 @@ def preflight_checkpoint_disk(
         )
 
 
+def export_hf_checkpoint(args, trainer, candidate_paths, model_trainer):
+    """Write a clean Hugging Face model next to the run outputs.
+
+    Only the model itself is exported (``config.json`` + ``model.safetensors``);
+    the tokenizer stays in its own directory and is supplied at load time. Runs on
+    the global-zero rank only, so DDP ranks do not race on the same files.
+    """
+
+    if not getattr(trainer, "is_global_zero", True):
+        return
+
+    checkpoint_path = next(
+        (path for path in candidate_paths if path and os.path.isfile(path)), ""
+    )
+    if not checkpoint_path:
+        print("[hf-export] no checkpoint to export; skipping")
+        return
+
+    import ebfm.modeling_ebfm as modeling_ebfm
+
+    model_cls = getattr(modeling_ebfm, "EBFMForMaskedLM", None)
+    if model_cls is None:
+        print(
+            "[hf-export] skipped: Transformers is required, "
+            "install it with `uv sync --extra hf`"
+        )
+        return
+
+    tokenizer_dir = getattr(
+        model_trainer.hparams, "tokenizer_dir", None
+    ) or os.path.join(get_base_dir(), "tokenizer")
+    output_dir = os.path.join(args.run_dir, "checkpoints_hf")
+    try:
+        model, _ = model_cls.from_legacy_checkpoint(
+            checkpoint_path, tokenizer_path=tokenizer_dir
+        )
+        model.save_pretrained(output_dir, safe_serialization=True)
+    except Exception as exc:  # keep the already-finished training run intact
+        print(f"[hf-export] FAILED for {checkpoint_path}: {type(exc).__name__}: {exc}")
+        return
+    print(f"[hf-export] saved Hugging Face model to {output_dir}")
+
+
 def main(args):
 
-    from esm.trainer import ModelTrainer
+    from ebfm.trainer import ModelTrainer
 
     print(f"[output] output_root={args.output_root}")
     print(f"[output] run_name={args.run_name}")
@@ -311,7 +355,7 @@ def main(args):
     except KeyError as exc:
         valid_sizes = ", ".join(model_sizes)
         raise ValueError(
-            f"unsupported ESM model_size={args.model_size!r}; use one of: {valid_sizes}"
+            f"unsupported EBFM model_size={args.model_size!r}; use one of: {valid_sizes}"
         ) from exc
     args.num_transformer_blocks = model_config["num_transformer_blocks"]
     args.multiheaded_attention_heads = model_config["multiheaded_attention_heads"]
@@ -331,15 +375,15 @@ def main(args):
         assert args.embedding_dim != 0, "must define embedding dim for NLP models"
     else:
         raise ValueError(
-            f"unsupported modality={args.modality!r}; ESM only supports the NLP/time-embedding path"
+            f"unsupported modality={args.modality!r}; EBFM only supports the NLP/time-embedding path"
         )
 
     if not getattr(args, "time_embedding", True):
         raise ValueError(
-            "ESM requires time_embedding=true; the non-time-embedding path was removed"
+            "EBFM requires time_embedding=true; the non-time-embedding path was removed"
         )
 
-    # num_nodes / proc_per_node / world_size are resolved once in esm/config.py
+    # num_nodes / proc_per_node / world_size are resolved once in ebfm/config.py
     print(
         f"num_nodes={args.num_nodes} proc_per_node={args.proc_per_node} "
         f"world_size={args.world_size}"
@@ -518,6 +562,15 @@ def main(args):
         None if args.resume_training_ckpt == "" else args.resume_training_ckpt
     )
     trainer.fit(model_trainer, ckpt_path=resume_training_ckpt, weights_only=False)
+    export_hf_checkpoint(
+        args,
+        trainer,
+        [
+            getattr(final_checkpoint, "final_model_path", ""),
+            getattr(checkpoint_callback, "best_model_path", ""),
+        ],
+        model_trainer,
+    )
     clear_cache()
 
 
@@ -569,7 +622,7 @@ def set_trainer(
     gradient_clip_val = args.gradient_clip_val if args.gradient_clip_val > 0 else None
     limit_val_batches = 0 if args.overfit_batches > 0 else args.limit_val_batches
     if (
-        getattr(args, "dataset_name", "") == "esm_sft"
+        getattr(args, "dataset_name", "") == "ebfm_sft"
         and isinstance(args.val_check_interval, float)
         and args.val_check_interval > 1
         and args.val_check_interval.is_integer()
@@ -623,7 +676,7 @@ if __name__ == "__main__":
         "--output_root",
         type=str,
         default=".",
-        help="Root for outputs; relative paths are resolved from the ESM project root.",
+        help="Root for outputs; relative paths are resolved from the EBFM project root.",
     )
     parser.add_argument(
         "--run_name",
@@ -644,7 +697,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--modality",
-        help="ESM training modality; only NLP is supported",
+        help="EBFM training modality; only NLP is supported",
         choices=["NLP"],
         type=str,
         default="NLP",
@@ -664,25 +717,25 @@ if __name__ == "__main__":
         "--time_embedding",
         type=_parse_bool,
         default=True,
-        help="ESM always uses the paper's time-embedding backbone",
+        help="EBFM always uses the paper's time-embedding backbone",
     )
 
     parser.add_argument(
         "--model_name",
-        choices=["esm"],
-        default="esm",
-        help="ESM model implementation (the only supported model is ESM)",
+        choices=["ebfm"],
+        default="ebfm",
+        help="EBFM model implementation (the only supported model is EBFM)",
     )
 
     parser.add_argument(
         "--model_size",
-        help="ESM model size, named by transformer depth (d{number})",
+        help="EBFM model size, named by transformer depth (d{number})",
         choices=model_sizes.keys(),
         default="d6",
     )
 
     parser.add_argument(
-        "--tokenizer", help="ESM tokenizer identifier", type=str, default="esm_bpe"
+        "--tokenizer", help="EBFM tokenizer identifier", type=str, default="ebfm_bpe"
     )
 
     parser.add_argument(
@@ -708,8 +761,8 @@ if __name__ == "__main__":
         "--tf_head_type", choices=["direct_unembed"], type=str, default="direct_unembed"
     )
     parser.add_argument("--free_embedding_mcmc", action="store_true", default=False)
-    parser.add_argument("--esm_norm", choices=["rms"], type=str, default="rms")
-    parser.add_argument("--esm_act_func", type=str, default="silu")
+    parser.add_argument("--ebfm_norm", choices=["rms"], type=str, default="rms")
+    parser.add_argument("--ebfm_act_func", type=str, default="silu")
     parser.add_argument("--truncate_mcmc", action="store_true", default=False)
 
     parser.add_argument(
@@ -735,7 +788,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--weight_initialization_gain",
-        help="gain of the weight init, see https://pytorch.org/docs/stable/nn.init.html, default is equiavalent to linear gain which is 1. tried tweaking this for ESM didnt help",
+        help="gain of the weight init, see https://pytorch.org/docs/stable/nn.init.html, default is equiavalent to linear gain which is 1. tried tweaking this for EBFM didnt help",
         type=float,
         default=1.0,
     )
@@ -906,7 +959,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--linear_warmdown",
-        help="[Option 3] Enable the ESM linear warmdown learning-rate schedule",
+        help="[Option 3] Enable the EBFM linear warmdown learning-rate schedule",
         action="store_true",
         default=False,
     )
@@ -930,14 +983,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--dataset_name", help="training task: dclm or esm_sft", default="dclm"
+        "--dataset_name", help="training task: dclm or ebfm_sft", default="dclm"
     )
     parser.add_argument(
         "--base_train_dataset",
-        help="local base pretraining corpus used by the esm parquet dataloader",
+        help="local base pretraining corpus used by the ebfm parquet dataloader",
         choices=["fineweb", "climbmix", "dclm", "owt"],
         default=os.environ.get(
-            "BASE_TRAIN_DATASET", os.environ.get("ESM_BASE_TRAIN_DATASET", "dclm")
+            "BASE_TRAIN_DATASET", os.environ.get("EBFM_BASE_TRAIN_DATASET", "dclm")
         ),
     )
     parser.add_argument(
@@ -996,7 +1049,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--wandb_entity", help="wandb entity", default="")
 
-    parser.add_argument("--wandb_project", help="wandb project name", default="ESM")
+    parser.add_argument("--wandb_project", help="wandb project name", default="EBFM")
 
     parser.add_argument(
         "--wandb_tags", help="wandb tags to add", nargs="+", default=None

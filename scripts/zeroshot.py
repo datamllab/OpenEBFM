@@ -1,4 +1,4 @@
-"""Run the MDLM Table-3 zero-shot evaluation for an ESM checkpoint."""
+"""Run the MDLM Table-3 zero-shot evaluation for an EBFM checkpoint."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import time
 import numpy as np
 import torch
 
-from esm.modeling_esm import (
+from ebfm.modeling_ebfm import (
     get_token_bytes,
     get_tokenizer,
     load_checkpoint,
@@ -150,9 +150,9 @@ def aggregate(output_dir):
     with open(os.path.join(output_dir, "summary.json"), "w", encoding="utf-8") as handle:
         json.dump(ordered, handle, indent=2)
     lines = [
-        "# ESM zero-shot evaluation",
+        "# EBFM zero-shot evaluation",
         "",
-        "MDLM Table-3 protocol with the ESM tokenizer and token-weighted metrics.",
+        "MDLM Table-3 protocol with the EBFM tokenizer and token-weighted metrics.",
         "",
         "| dataset | PPL | BPB | mean NLL | blocks | tokens |",
         "|---|---:|---:|---:|---:|---:|",
@@ -192,7 +192,7 @@ def evaluate_dataset(args):
         blocks = blocks[args.shard_index :: args.num_shards]
     metrics = evaluate_blocks(model, blocks, args.batch_size, device, token_bytes)
     result = {
-        "model": hparams.get("model_name", "esm"),
+        "model": hparams.get("model_name", "ebfm"),
         "dataset": args.dataset,
         "checkpoint": args.checkpoint,
         "source_checkpoint": args.source_checkpoint or args.checkpoint,

@@ -3,15 +3,15 @@ import pytest
 
 transformers = pytest.importorskip("transformers")
 
-from esm.configuration_esm import ESMConfig
+from ebfm.configuration_ebfm import EBFMConfig
 
 
-def test_esm_config_round_trip(tmp_path):
-    config = ESMConfig(model_size="d4", vocab_size=128, context_length=32)
+def test_ebfm_config_round_trip(tmp_path):
+    config = EBFMConfig(model_size="d4", vocab_size=128, context_length=32)
     config.save_pretrained(tmp_path)
-    restored = ESMConfig.from_pretrained(tmp_path)
+    restored = EBFMConfig.from_pretrained(tmp_path)
 
-    assert restored.model_type == "esm"
+    assert restored.model_type == "ebfm"
     assert restored.model_size == "d4"
     assert restored.vocab_size == 128
     assert restored.context_length == 32

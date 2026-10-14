@@ -1,4 +1,4 @@
-"""Metrics used by the ESM language-model objective."""
+"""Metrics used by the EBFM language-model objective."""
 
 import math
 

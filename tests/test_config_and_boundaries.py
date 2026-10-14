@@ -1,12 +1,12 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from esm.config import load_yaml, merge_yaml_into_args
-from esm.modeling_esm import resolve_tokenizer_dir
-from esm.dataset import generate_dataloader
-from esm.dataset_sft import generate_sft_dataloader
-from esm.modeling_esm import __all__ as model_exports
-from esm.tokenizer import __all__ as tokenizer_exports
+from ebfm.config import load_yaml, merge_yaml_into_args
+from ebfm.modeling_ebfm import resolve_tokenizer_dir
+from ebfm.dataset import generate_dataloader
+from ebfm.dataset_sft import generate_sft_dataloader
+from ebfm.modeling_ebfm import __all__ as model_exports
+from ebfm.tokenizer import __all__ as tokenizer_exports
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -33,12 +33,12 @@ def test_explicit_cli_values_override_yaml_values():
 def test_yaml_environment_defaults_are_portable(monkeypatch, tmp_path):
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
-        "data_root: '${ESM_TEST_DATA:-data}'\nasset_root: '${ESM_TEST_ASSET}'\n",
+        "data_root: '${EBFM_TEST_DATA:-data}'\nasset_root: '${EBFM_TEST_ASSET}'\n",
         encoding="utf-8",
     )
 
-    monkeypatch.delenv("ESM_TEST_DATA", raising=False)
-    monkeypatch.setenv("ESM_TEST_ASSET", str(tmp_path / "assets"))
+    monkeypatch.delenv("EBFM_TEST_DATA", raising=False)
+    monkeypatch.setenv("EBFM_TEST_ASSET", str(tmp_path / "assets"))
     values = load_yaml(config_path)
 
     assert values == {
@@ -48,16 +48,16 @@ def test_yaml_environment_defaults_are_portable(monkeypatch, tmp_path):
 
 
 def test_public_boundaries_expose_the_paper_path():
-    assert "ESM_NLP" in model_exports
-    assert "ESMTimeConcat" in model_exports
+    assert "EBFM_NLP" in model_exports
+    assert "EBFMTimeConcat" in model_exports
     assert "get_tokenizer" in tokenizer_exports
-    assert "ESMTokenizerWrapper" in tokenizer_exports
+    assert "EBFMTokenizerWrapper" in tokenizer_exports
     assert callable(generate_dataloader)
     assert callable(generate_sft_dataloader)
 
 
 def test_checkpoint_can_discover_adjacent_tokenizer(tmp_path):
-    checkpoint = tmp_path / "esm.ckpt"
+    checkpoint = tmp_path / "ebfm.ckpt"
     tokenizer_dir = tmp_path / "tokenizer"
     checkpoint.touch()
     tokenizer_dir.mkdir()

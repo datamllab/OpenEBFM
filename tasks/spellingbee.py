@@ -1,5 +1,5 @@
 """
-Task intended to make esm better in spelling and counting, for example:
+Task intended to make ebfm better in spelling and counting, for example:
 
 "How many r are in strawberry?" -> 3
 
@@ -30,7 +30,7 @@ import re
 import random
 import os
 from tasks.common import Task
-from esm.common import download_file_with_lock
+from ebfm.common import download_file_with_lock
 
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
@@ -43,8 +43,8 @@ TEST_RANDOM_SEED_OFFSET = 10_000_000
 def get_word_list_path():
     """Return the path to ``words_alpha.txt`` and support offline mode."""
 
-    if os.environ.get("ESM_SFT_DATA_DIR"):
-        offline_path = os.path.join(os.environ["ESM_SFT_DATA_DIR"], "words_alpha.txt")
+    if os.environ.get("EBFM_SFT_DATA_DIR"):
+        offline_path = os.path.join(os.environ["EBFM_SFT_DATA_DIR"], "words_alpha.txt")
         if os.path.exists(offline_path):
             return offline_path
 

@@ -2,26 +2,26 @@ import torch
 import gc
 import os
 
-from esm.dataset_sft import generate_sft_dataloader
-from esm.modeling_esm import ESM_NLP
-from esm.optim import (
+from ebfm.dataset_sft import generate_sft_dataloader
+from ebfm.modeling_ebfm import EBFM_NLP
+from ebfm.optim import (
     WarmUpLinearWarmdownLR,
 )
-from esm.tokenizer import get_tokenizer, get_token_bytes
+from ebfm.tokenizer import get_tokenizer, get_token_bytes
 
 
 try:
     from lightning.pytorch import LightningModule
 except ImportError:
     from pytorch_lightning import LightningModule
-from esm.dataset import generate_dataloader
+from ebfm.dataset import generate_dataloader
 
 
 def _sft_trainer_debug(message):
-    if os.environ.get("ESM_SFT_DEBUG", "0").lower() not in ("1", "true", "yes"):
+    if os.environ.get("EBFM_SFT_DEBUG", "0").lower() not in ("1", "true", "yes"):
         return
     rank = os.environ.get("RANK", "?")
-    debug_ranks = os.environ.get("ESM_SFT_DEBUG_RANKS", "0").strip().lower()
+    debug_ranks = os.environ.get("EBFM_SFT_DEBUG_RANKS", "0").strip().lower()
     if debug_ranks not in ("all", "*"):
         enabled_ranks = {
             item.strip() for item in debug_ranks.split(",") if item.strip()
@@ -29,7 +29,7 @@ def _sft_trainer_debug(message):
         if rank not in enabled_ranks:
             return
     local_rank = os.environ.get("LOCAL_RANK", "?")
-    print(f"[ESM SFT Trainer][rank={rank} local={local_rank}] {message}", flush=True)
+    print(f"[EBFM SFT Trainer][rank={rank} local={local_rank}] {message}", flush=True)
 
 
 class ModelTrainer(LightningModule):
@@ -67,15 +67,15 @@ class ModelTrainer(LightningModule):
 
         print("=" * 80)
         print("TOKENIZER INFO:")
-        print("  Actual tokenizer used: ESM custom BPE tokenizer")
-        print("  Tokenizer location: $ESM_BASE_DIR/tokenizer/")
+        print("  Actual tokenizer used: EBFM custom BPE tokenizer")
+        print("  Tokenizer location: $EBFM_BASE_DIR/tokenizer/")
         print(f"  Vocab size: {tokenizer.get_vocab_size()}")
         print("=" * 80)
 
         if trained_model is not None:
             self.model = trained_model
         else:
-            self.model = ESM_NLP(self.hparams)
+            self.model = EBFM_NLP(self.hparams)
 
         if self.hparams.compile_model:
             compile_mode = getattr(self.hparams, "compile_mode", "transformer_only")
@@ -89,7 +89,7 @@ class ModelTrainer(LightningModule):
                     f"[torch.compile] mode=full | backend={compile_backend} | dynamic={compile_dynamic}"
                 )
                 print(
-                    "[torch.compile] Warning: the ESM MCMC loop uses autograd.grad and may not compile"
+                    "[torch.compile] Warning: the EBFM MCMC loop uses autograd.grad and may not compile"
                 )
                 print("[torch.compile] The first compilation may take 5-15 minutes...")
                 print(f"{'=' * 80}\n")
@@ -126,7 +126,7 @@ class ModelTrainer(LightningModule):
 
             else:
                 print(
-                    "[torch.compile] Skipping compilation in training mode (ESM MCMC requires create_graph=True, which AOT autograd cannot double-backpropagate)"
+                    "[torch.compile] Skipping compilation in training mode (EBFM MCMC requires create_graph=True, which AOT autograd cannot double-backpropagate)"
                 )
 
         if self.hparams.wandb_watch:
@@ -666,8 +666,8 @@ class ModelTrainer(LightningModule):
         """Construct the paper optimizer; alternate optimizers were removed."""
 
         if self.hparams.optimizer != "muon_adamw":
-            raise ValueError("ESM training requires optimizer='muon_adamw'.")
-        from esm.optim import MuonAdamW
+            raise ValueError("EBFM training requires optimizer='muon_adamw'.")
+        from ebfm.optim import MuonAdamW
 
         class PLMuonAdamW(MuonAdamW):
             @torch.no_grad()
@@ -691,7 +691,7 @@ class ModelTrainer(LightningModule):
     def get_lr_scheduler(self, optimizer):
         enable_wd_decay = getattr(self.hparams, "dynamic_wd", False)
         if not getattr(self.hparams, "linear_warmdown", False):
-            raise ValueError("ESM training requires linear_warmdown=true.")
+            raise ValueError("EBFM training requires linear_warmdown=true.")
         return WarmUpLinearWarmdownLR(
             optimizer,
             warmup_ratio=getattr(self.hparams, "warmup_ratio", 0.0),
@@ -779,7 +779,7 @@ class ModelTrainer(LightningModule):
         """
         Configure the mixed Muon and AdamW optimizer.
 
-        Parameter groups follow the ESM paper recipe:
+        Parameter groups follow the EBFM paper recipe:
         - ``alpha`` uses AdamW with a high learning rate and no decay.
         - Embeddings use AdamW with a separate learning rate and no decay.
         - ``vocab_to_embed`` uses a conservative AdamW learning rate.
@@ -802,7 +802,7 @@ class ModelTrainer(LightningModule):
         adamw_scalar_lr = float(self.hparams.adamw_scalar_lr)
         if min(adamw_embedding_lr, adamw_vocab_to_embed_lr, adamw_scalar_lr) <= 0:
             raise ValueError(
-                "The ESM paper path requires positive absolute AdamW learning rates."
+                "The EBFM paper path requires positive absolute AdamW learning rates."
             )
         dmodel_scale = (self.hparams.embedding_dim / 768) ** -0.5
         embedding_lr = adamw_embedding_lr * dmodel_scale
@@ -940,9 +940,9 @@ class ModelTrainer(LightningModule):
         print(
             f"  Muon LR: {muon_lr}, momentum: {muon_momentum}, ns_steps: {muon_ns_steps}, beta2: {muon_beta2}"
         )
-        print(f"  Alpha LR: {alpha_lr} (AdamW) [ESM-specific]")
+        print(f"  Alpha LR: {alpha_lr} (AdamW) [EBFM-specific]")
         print(f"  Embedding LR: {embedding_lr} (AdamW)")
-        print(f"  vocab_to_embed LR: {vocab_to_embed_lr} (AdamW) [ESM-specific, used by MCMC]")
+        print(f"  vocab_to_embed LR: {vocab_to_embed_lr} (AdamW) [EBFM-specific, used by MCMC]")
         print(f"  Scalar LR: {scalar_lr} (AdamW)")
         print(
             f"  dmodel scaling: {dmodel_scale:.4f} (dim={self.hparams.embedding_dim})"
@@ -961,9 +961,9 @@ class ModelTrainer(LightningModule):
         }
 
     def configure_optimizers_nlp(self):
-        if self.hparams.model_name != "esm":
+        if self.hparams.model_name != "ebfm":
             raise NotImplementedError(
-                f"ESM trainer does not support model {self.hparams.model_name!r}."
+                f"EBFM trainer does not support model {self.hparams.model_name!r}."
             )
         return self._configure_muon_adamw_optimizer()
 
@@ -981,7 +981,7 @@ class ModelTrainer(LightningModule):
         resume_state = getattr(self, "_dataloader_resume_state", None)
         self._dataloader_resume_state = None
 
-        if getattr(self.hparams, "dataset_name", "esm") == "esm_sft":
+        if getattr(self.hparams, "dataset_name", "ebfm") == "ebfm_sft":
             _sft_trainer_debug(
                 f"train_dataloader_start batch_size={self.hparams.batch_size_per_device} "
                 f"max_len={self.hparams.context_length} max_iter={self.hparams.max_steps * self.hparams.accumulate_grad_batches}"
@@ -1021,7 +1021,7 @@ class ModelTrainer(LightningModule):
         base_train_data_dir = getattr(self.hparams, "base_train_data_dir", "")
         base_train_data_dir = base_train_data_dir or None
 
-        if getattr(self.hparams, "dataset_name", "esm") == "esm_sft":
+        if getattr(self.hparams, "dataset_name", "ebfm") == "ebfm_sft":
             _sft_trainer_debug(
                 f"val_dataloader_start batch_size={self.hparams.batch_size_per_device} "
                 f"max_len={self.hparams.context_length} max_iter={self.hparams.val_steps}"

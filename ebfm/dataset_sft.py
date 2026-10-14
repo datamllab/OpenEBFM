@@ -1,8 +1,8 @@
 """
-ESM SFT dataset adapter for ESM task mixtures.
+EBFM SFT dataset adapter for EBFM task mixtures.
 
-This keeps the packed `(inputs, targets)` interface expected by the ESM trainer
-while using ESM conversation tasks as the data source.
+This keeps the packed `(inputs, targets)` interface expected by the EBFM trainer
+while using EBFM conversation tasks as the data source.
 """
 
 import copy
@@ -17,14 +17,14 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset as _IterableDataset
 
-from esm.common import get_dist_info
+from ebfm.common import get_dist_info
 
 
 def _sft_debug(message):
-    if os.environ.get("ESM_SFT_DEBUG", "0").lower() not in ("1", "true", "yes"):
+    if os.environ.get("EBFM_SFT_DEBUG", "0").lower() not in ("1", "true", "yes"):
         return
     rank = os.environ.get("RANK", "?")
-    debug_ranks = os.environ.get("ESM_SFT_DEBUG_RANKS", "0").strip().lower()
+    debug_ranks = os.environ.get("EBFM_SFT_DEBUG_RANKS", "0").strip().lower()
     if debug_ranks not in ("all", "*"):
         enabled_ranks = {
             item.strip() for item in debug_ranks.split(",") if item.strip()
@@ -32,7 +32,7 @@ def _sft_debug(message):
         if rank not in enabled_ranks:
             return
     local_rank = os.environ.get("LOCAL_RANK", "?")
-    print(f"[ESM SFT][rank={rank} local={local_rank}] {message}", flush=True)
+    print(f"[EBFM SFT][rank={rank} local={local_rank}] {message}", flush=True)
 
 
 def _build_logged_task(name, factory):
@@ -76,18 +76,18 @@ def _sft_dataset_load_lock():
 
     SFT currently runs on a single node, so the default /tmp lock is
     intentionally node-local. If SFT is expanded to multi-node with a shared
-    writable dataset cache, set ESM_SFT_DATASET_LOAD_LOCK_PATH to a shared
+    writable dataset cache, set EBFM_SFT_DATASET_LOAD_LOCK_PATH to a shared
     filesystem path.
     """
-    if os.environ.get("ESM_SFT_DATASET_LOAD_LOCK", "1").lower() in ("0", "false", "no"):
+    if os.environ.get("EBFM_SFT_DATASET_LOAD_LOCK", "1").lower() in ("0", "false", "no"):
         yield
         return
 
-    sft_data_dir = os.environ.get("ESM_SFT_DATA_DIR", "")
+    sft_data_dir = os.environ.get("EBFM_SFT_DATA_DIR", "")
     lock_key = hashlib.sha1(sft_data_dir.encode("utf-8")).hexdigest()[:12]
     lock_path = os.environ.get(
-        "ESM_SFT_DATASET_LOAD_LOCK_PATH",
-        os.path.join("/tmp", f"esm_sft_dataset_load_{lock_key}.lock"),
+        "EBFM_SFT_DATASET_LOAD_LOCK_PATH",
+        os.path.join("/tmp", f"ebfm_sft_dataset_load_{lock_key}.lock"),
     )
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
     with open(lock_path, "w") as lock_file:
@@ -126,7 +126,7 @@ def _silence_hf_dataset_warnings():
 
 
 def _load_sft_datasets(caller_split=None):
-    """Load the ESM SFT train/validation task mixtures."""
+    """Load the EBFM SFT train/validation task mixtures."""
     global _SFT_DATASETS_CACHE
 
     if _SFT_DATASETS_CACHE is not None:
@@ -146,14 +146,14 @@ def _load_sft_datasets(caller_split=None):
 
     with _sft_dataset_load_lock():
         load_start = time.monotonic()
-        sft_data_dir = os.environ.get("ESM_SFT_DATA_DIR", "")
+        sft_data_dir = os.environ.get("EBFM_SFT_DATA_DIR", "")
         _sft_debug(
             f"load_start caller_split={caller_split} sft_data_dir={sft_data_dir}"
         )
         if sft_data_dir and os.path.exists(sft_data_dir):
             _sft_debug(f"using_offline_dataset_root path={sft_data_dir}")
 
-        base_dir = os.environ.get("ESM_BASE_DIR", "")
+        base_dir = os.environ.get("EBFM_BASE_DIR", "")
         identity_path = os.path.join(base_dir, "identity_conversations.jsonl")
 
         train_tasks = [
@@ -239,7 +239,7 @@ def _load_sft_datasets(caller_split=None):
 
 
 class SFTIterableDataset(_IterableDataset):
-    """Adapt ESM SFT task mixtures to the ESM iterable dataloader API."""
+    """Adapt EBFM SFT task mixtures to the EBFM iterable dataloader API."""
 
     STATE_VERSION = "sft_v1"
 
@@ -338,7 +338,7 @@ class SFTIterableDataset(_IterableDataset):
         }
 
     def __iter__(self):
-        """BOS-aligned best-fit packing, matching ESM chat formatting."""
+        """BOS-aligned best-fit packing, matching EBFM chat formatting."""
         ddp, ddp_rank, ddp_local_rank, ddp_world_size = get_dist_info()
         dataset = self.train_dataset if self.split == "train" else self.val_dataset
         dataset_size = len(dataset)
@@ -482,7 +482,7 @@ class SFTDataLoader(DataLoader):
         dataset = getattr(self, "dataset", None)
         split = getattr(dataset, "split", None)
         if split == "train" and os.environ.get(
-            "ESM_SFT_HIDE_TRAIN_DATALOADER_LEN", "1"
+            "EBFM_SFT_HIDE_TRAIN_DATALOADER_LEN", "1"
         ).lower() not in (
             "0",
             "false",

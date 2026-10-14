@@ -1,18 +1,18 @@
 
 modality: "NLP"
 time_embedding: true
-tokenizer: "esm_bpe"
+tokenizer: "ebfm_bpe"
 vocab_size: 32768
 dataset_name: "dclm"
 base_train_dataset: "dclm"
-data_root: "${ESM_DATA_ROOT:-data}"
-esm_asset_root: "${ESM_ASSET_ROOT:-.cache}"
+data_root: "${EBFM_DATA_ROOT:-data}"
+ebfm_asset_root: "${EBFM_ASSET_ROOT:-.cache}"
 node_count: 1
 gpus: -1
 cuda_visible_devices: "1,2,3,4"
 context_length: 2048
 device_batch_size: 1
 task: "position_bpb"
-output_root: "${ESM_OUTPUT_ROOT:-.}"
-log_root: "${ESM_EVAL_LOG_ROOT:-}"
+output_root: "${EBFM_OUTPUT_ROOT:-.}"
+log_root: "${EBFM_EVAL_LOG_ROOT:-}"
 checkpoint: ""

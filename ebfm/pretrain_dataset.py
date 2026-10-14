@@ -1,7 +1,7 @@
 """
 The base/pretraining dataset is a set of parquet files.
 This file contains utilities for locating and iterating over the parquet files.
-Downloading lives in `esm/dataset.py` (`python -m esm.dataset`).
+Downloading lives in `ebfm/dataset.py` (`python -m ebfm.dataset`).
 
 For details of how the dataset was prepared, see `repackage_data_reference.py`.
 """
@@ -10,7 +10,7 @@ import os
 
 import pyarrow.parquet as pq
 
-from esm.common import get_base_dir
+from ebfm.common import get_base_dir
 
 
 VALID_BASE_TRAIN_DATASETS = ("fineweb", "climbmix", "dclm", "owt")
@@ -23,7 +23,7 @@ def normalize_base_train_dataset(dataset_name=None):
     dataset_name = (
         dataset_name
         or os.environ.get("BASE_TRAIN_DATASET")
-        or os.environ.get("ESM_BASE_TRAIN_DATASET")
+        or os.environ.get("EBFM_BASE_TRAIN_DATASET")
         or DEFAULT_BASE_TRAIN_DATASET
     )
     dataset_name = str(dataset_name).strip().lower()
@@ -40,10 +40,10 @@ def get_dataset_dir(dataset_name=None, data_dir=None):
     Return the local parquet directory for a base pretraining dataset.
 
     The layout is:
-      $ESM_BASE_DIR/fineweb/
-      $ESM_BASE_DIR/climbmix/
-      $ESM_BASE_DIR/dclm/
-      $ESM_BASE_DIR/owt/
+      $EBFM_BASE_DIR/fineweb/
+      $EBFM_BASE_DIR/climbmix/
+      $EBFM_BASE_DIR/dclm/
+      $EBFM_BASE_DIR/owt/
     """
     if data_dir:
         return os.path.abspath(data_dir)

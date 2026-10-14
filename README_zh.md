@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="assets/openesm-github-title.png" alt="OpenESM" width=800>
+  <img src="figs/OpenEBFM_logo.png" alt="OpenEBFM" width=800>
 </p>
 
 <p align="center">
-  <a href="https://github.com/datamllab/openesm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
-  <a href="https://huggingface.co/collections/guan-wang/openesm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face"/></a>
+  <a href="https://github.com/datamllab/ebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
+  <a href="https://huggingface.co/collections/guan-wang/ebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face"/></a>
 </p>
 
 <p align="center">
-  <strong>用于训练和扩展 Energy-Steered Models 的开源代码</strong>
+  <strong>用于训练和扩展 Energy-based Foundation Models 的开源代码</strong>
 </p>
 
 <p align="center">
@@ -54,12 +54,12 @@ DCLM 和 FineWeb 上，零样本准确率随模型规模提升，也会随训练
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="figs/scaling_pretrain_dclm_validation_bpb.png" width="100%" alt="DCLM 验证 BPB 与训练 token 数的关系"><br>DCLM 预训练</td>
-    <td align="center" width="50%"><img src="figs/dclm_best_val_bpb_vs_depth.png" width="100%" alt="DCLM 验证 BPB 与模型规模的关系"><br>参数规模扩展</td>
+    <td align="center" width="50%"><img src="figs/dclm_pretrain.png" width="100%" alt="DCLM 验证 BPB 与训练 token 数的关系"><br>DCLM 预训练</td>
+    <td align="center" width="50%"><img src="figs/pretrain_size.png" width="100%" alt="DCLM 验证 BPB 与模型规模的关系"><br>参数规模扩展</td>
   </tr>
   <tr>
-    <td align="center" width="50%"><img src="figs/qa_acc_vs_model_size.png" width="100%" alt="不同训练数据集上的平均零样本准确率与模型规模"><br>零样本参数规模扩展</td>
-    <td align="center" width="50%"><img src="figs/zero_shot_acc_vs_training_tokens.png" width="100%" alt="零样本准确率与训练 token 数的关系"><br>零样本 token 扩展</td>
+    <td align="center" width="50%"><img src="figs/acc_size.png" width="100%" alt="不同训练数据集上的平均零样本准确率与模型规模"><br>零样本参数规模扩展</td>
+    <td align="center" width="50%"><img src="figs/acc_tokens.png" width="100%" alt="零样本准确率与训练 token 数的关系"><br>零样本 token 扩展</td>
   </tr>
 </table>
 
@@ -69,9 +69,9 @@ DCLM 和 FineWeb 上，零样本准确率随模型规模提升，也会随训练
 ## ⚙️ 预训练 Checkpoint
 
 预训练模型发布在
-[OpenESM Hugging Face collection](https://huggingface.co/collections/guan-wang/openesm)
+[EBFM Hugging Face collection](https://huggingface.co/collections/guan-wang/ebfm)
 中。Collection 包含基于 DCLM、FineWeb 和 ClimbMix 训练的 160M、520M 和 1B
-参数规模模型；一个 160M OWT 模型；以及一个名为 `ESM-FineWeb-1B-CHAT` 的
+参数规模模型；一个 160M OWT 模型；以及一个名为 `EBFM-FineWeb-1B-CHAT` 的
 FineWeb SFT 模型。
 
 可以直接通过 Hugging Face 模型 ID 加载已发布模型。首次加载会自动下载
@@ -79,11 +79,11 @@ FineWeb SFT 模型。
 
 ```python
 import torch
-from esm.modeling_esm import load_checkpoint
+from ebfm.modeling_ebfm import load_checkpoint
 
-model_id = "guan-wang/ESM-FineWeb-1B-CHAT"
+model_id = "guan-wang/EBFM-FineWeb-1B-CHAT"
 model, tokenizer, hparams, device = load_checkpoint(model_id, device="cuda")
-tokens = tokenizer.encode("Hello, ESM.", append=tokenizer.get_bos_token_id())
+tokens = tokenizer.encode("Hello, EBFM.", append=tokenizer.get_bos_token_id())
 input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
 with torch.no_grad():
     logits = model(input_ids)
@@ -95,14 +95,14 @@ print(logits.shape)
 ## 💬 Chat Demo
 
 <p align="center">
-  <img src="figs/chat.jpg" alt="ESM Chat 网页界面" width="850">
+  <img src="figs/chat.jpg" alt="EBFM Chat 网页界面" width="850">
 </p>
 
 使用 Hugging Face 上发布的 SFT 模型启动网页聊天：
 
 ```bash
 bash runs/chat.sh --web \
-  --checkpoint guan-wang/ESM-FineWeb-1B-CHAT \
+  --checkpoint guan-wang/EBFM-FineWeb-1B-CHAT \
   --host 0.0.0.0 \
   --port 8000
 ```
@@ -125,13 +125,13 @@ TARGET_TOTAL_TOKENS=100000000 bash runs/train.sh
 
 # 微调：从 Hugging Face 上发布的模型初始化权重。
 TARGET_TOTAL_TOKENS=100000000 bash runs/sft.sh \
-  --dataset_name esm_sft \
-  --finetuning_model_ckpt guan-wang/ESM-DCLM-1B
+  --dataset_name ebfm_sft \
+  --finetuning_model_ckpt guan-wang/EBFM-DCLM-1B
 
 # Position-wise BPB evaluation。
-MODEL_DIR="$(python -c 'from huggingface_hub import snapshot_download; print(snapshot_download(repo_id="guan-wang/ESM-DCLM-1B"))')"
+MODEL_DIR="$(python -c 'from huggingface_hub import snapshot_download; print(snapshot_download(repo_id="guan-wang/EBFM-DCLM-1B"))')"
 bash runs/eval.sh \
-  --checkpoint guan-wang/ESM-DCLM-1B \
+  --checkpoint guan-wang/EBFM-DCLM-1B \
   --dataset dclm \
   --data-dir /path/to/data \
   --tokenizer-path "${MODEL_DIR}" \
@@ -140,14 +140,14 @@ bash runs/eval.sh \
 
 # QA evaluation。
 bash runs/qa.sh \
-  --checkpoint guan-wang/ESM-DCLM-1B \
+  --checkpoint guan-wang/EBFM-DCLM-1B \
   --tokenizer-path "${MODEL_DIR}" \
   --eval-bundle /path/to/eval_bundle \
   --output_root . \
   --run_name qa-dclm
 
 # 交互式生成。
-bash runs/chat.sh --checkpoint guan-wang/ESM-FineWeb-1B-CHAT
+bash runs/chat.sh --checkpoint guan-wang/EBFM-FineWeb-1B-CHAT
 ```
 
 Chat、验证集评估、QA 评估和 SFT 初始化均可直接使用 Hugging Face 模型 ID。BPB
@@ -164,10 +164,17 @@ Lightning checkpoint。
 ```text
 outputs/<run-name>/
 ├── checkpoints/
+├── checkpoints_hf/
 ├── logs/
 │   └── wandb/
 └── results/
 ```
+
+训练结束后，`checkpoints_hf/` 会保存从最终 checkpoint 导出的 Hugging Face 模型
+（`config.json` + `model.safetensors`）。它不含 tokenizer、也不含自定义建模代码，
+用 `load_checkpoint("<run-dir>/checkpoints_hf", tokenizer_path=...)` 即可读回。导出
+需要 `hf` extra（`uv sync --extra gpu --extra hf`）；若未安装 Transformers，则打印
+一条日志后跳过，原有 `.ckpt` 文件不受影响。
 
 数据和 tokenizer 文件不包含在代码仓库中，需要通过配置或命令行传入路径。
 支持的预训练和 BPB 数据集包括 DCLM、FineWeb、ClimbMix 和 OWT。
@@ -179,10 +186,10 @@ outputs/<run-name>/
 
 ```python
 import torch
-from esm.modeling_esm import load_checkpoint
+from ebfm.modeling_ebfm import load_checkpoint
 
 model, tokenizer, hparams, device = load_checkpoint(
-    "guan-wang/ESM-OWT-160M", device="cuda"
+    "guan-wang/EBFM-OWT-160M", device="cuda"
 )
 tokens = tokenizer.encode("hello", append=tokenizer.get_bos_token_id())
 input_ids = torch.tensor(
@@ -200,17 +207,15 @@ print(logits.shape)
 ## 仓库结构
 
 ```text
-openesm/
-├── assets/                                  # 仓库品牌素材
-│   └── openesm-github-title.png             # README 标题横幅
+ebfm/
 ├── configs/                                 # 默认运行配置
 │   ├── eval.yaml                 # 评估默认配置
 │   └── train.yaml                # 预训练默认配置
-├── esm/                                     # 模型、数据和训练库
+├── ebfm/                                     # 模型、数据和训练库
 │   ├── __init__.py                           # 包初始化
 │   ├── common.py                             # 共享常量和工具函数
 │   ├── config.py                             # 训练与评估配置解析
-│   ├── configuration_esm.py                  # Transformers 模型配置
+│   ├── configuration_ebfm.py                  # Transformers 模型配置
 │   ├── core_eval.py                          # Core 基准评估
 │   ├── dataloader.py                         # 流式数据加载器
 │   ├── dataset.py                             # 通用数据集工具
@@ -218,24 +223,25 @@ openesm/
 │   ├── disk_aware_checkpoint.py              # checkpoint 保存与加载工具
 │   ├── logger.py                              # 训练指标和产物日志
 │   ├── metrics.py                             # 损失与 BPB 指标
-│   ├── modeling_esm.py                        # ESM 架构、加载和推理
+│   ├── modeling_ebfm.py                        # EBFM 架构、加载和推理
 │   ├── optim.py                               # Muon、AdamW 优化器和学习率调度
 │   ├── pretrain_dataset.py                    # 预训练数据管线
-│   ├── tokenizer.py                           # ESM 分词器及加载逻辑
+│   ├── tokenizer.py                           # EBFM 分词器及加载逻辑
 │   └── trainer.py                             # Lightning 训练与评估模块
 ├── figs/                                    # README 图片和演示截图
-│   ├── chat.jpg                               # 网页聊天界面截图
-│   ├── dclm_best_val_bpb_vs_depth.png          # DCLM 参数规模扩展图
-│   ├── qa_acc_vs_model_size.png                # 不同模型规模的零样本准确率
-│   ├── scaling_pretrain_dclm_validation_bpb.png # DCLM 验证 BPB 与 token 数关系图
-│   └── zero_shot_acc_vs_training_tokens.png    # 零样本准确率与 token 数关系图
+│   ├── OpenEBFM_logo.png                        # 项目 logo / 标题横幅
+│   ├── acc_size.png                             # 不同模型规模的零样本准确率
+│   ├── acc_tokens.png                           # 零样本准确率与 token 数关系图
+│   ├── chat.jpg                                 # 网页聊天界面截图
+│   ├── dclm_pretrain.png                        # DCLM 验证 BPB 与 token 数关系图
+│   └── pretrain_size.png                        # DCLM 参数规模扩展图
 ├── runs/                                    # 常用工作流的 Shell 入口
 │   ├── chat.sh                   # 启动交互式聊天
 │   ├── eval.sh                   # 执行验证集评估
 │   ├── prepare_data.sh           # 准备并分词数据集
 │   ├── qa.sh                     # 执行问答任务评估
 │   ├── sft.sh                    # 从 checkpoint 进行微调
-│   ├── train.sh                  # 预训练 ESM 模型
+│   ├── train.sh                  # 预训练 EBFM 模型
 │   └── zeroshot.sh               # 执行零样本基准测试
 ├── scripts/                                 # Python 命令行入口
 │   ├── chat.py                   # 提供终端或网页聊天服务
@@ -259,7 +265,7 @@ openesm/
 │   ├── test_dataloader_lightweight_state.py # 检查轻量级数据加载状态
 │   ├── test_dataset_sft_mask.py             # 检查 SFT 损失掩码
 │   ├── test_hf_configuration.py             # 检查 Transformers 配置
-│   └── test_modeling_esm_rope.py            # 检查旋转位置嵌入
+│   └── test_modeling_ebfm_rope.py            # 检查旋转位置嵌入
 ├── .gitignore                                # 忽略本地数据、输出和缓存
 ├── pyproject.toml                            # 包元数据和依赖分组
 ├── README.md                                 # 英文项目说明

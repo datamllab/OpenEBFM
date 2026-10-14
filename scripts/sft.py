@@ -1,6 +1,6 @@
 """Supervised fine-tuning entry point.
 
-SFT uses the same ESM trainer/model implementation as pretraining. This
+SFT uses the same EBFM trainer/model implementation as pretraining. This
 small task entry point supplies the only task-specific default and leaves all
 other parameters to ``configs/train.yaml`` and explicit CLI overrides.
 """

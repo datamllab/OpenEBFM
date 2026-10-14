@@ -1,5 +1,5 @@
 [project]
-name = "esm"
+name = "ebfm"
 version = "0.1.0"
 description = "Energy-based language models with training, evaluation, and inference"
 readme = "README.md"
@@ -39,7 +39,7 @@ python_functions = ["test_*"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["esm*", "scripts*", "tasks*"]
+include = ["ebfm*", "scripts*", "tasks*"]
 namespaces = true
 
 [build-system]

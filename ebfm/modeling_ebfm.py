@@ -1,4 +1,4 @@
-"""The paper-aligned ESM model.
+"""The paper-aligned EBFM model.
 
 The repository intentionally exposes one training architecture:
 
@@ -8,9 +8,6 @@ The repository intentionally exposes one training architecture:
 * the Muon+AdamW optimizer and linear warmdown schedule are configured by the
   trainer, not by alternate model branches.
 
-Old ablations and alternative heads are not supported. Keeping one model shape
-is important because checkpoints are reconstructed from their saved
-hyper-parameters before the state dict is loaded.
 """
 
 import math
@@ -37,12 +34,12 @@ except ImportError:
     MaskedLMOutput = None
 
 try:
-    from .configuration_esm import ESMConfig
+    from .configuration_ebfm import EBFMConfig
 except ImportError:
     try:
-        from configuration_esm import ESMConfig
+        from configuration_ebfm import EBFMConfig
     except ImportError:
-        ESMConfig = None
+        EBFMConfig = None
 
 
 def sample_top_p(probs: torch.Tensor, p: float) -> torch.Tensor:
@@ -56,7 +53,7 @@ def sample_top_p(probs: torch.Tensor, p: float) -> torch.Tensor:
 
 
 def call_model_forward_decode(hparams, model, input_tokens, start_pos=0, bsz=None):
-    """Run ESM on the supplied prefix and return vocabulary logits.
+    """Run EBFM on the supplied prefix and return vocabulary logits.
 
     Callers that pass the full prefix on each decoding iteration must keep
     ``start_pos=0`` because this model does not cache prior key/value states.
@@ -71,12 +68,12 @@ def call_model_forward_decode(hparams, model, input_tokens, start_pos=0, bsz=Non
     )
     pred_hidden = pred_hiddens[-1]
     if pred_hidden is None:
-        raise RuntimeError("ESM returned no post-update hidden state.")
+        raise RuntimeError("EBFM returned no post-update hidden state.")
     return model.tf_head(pred_hidden, model.embeddings(input_tokens))
 
 
 @dataclass
-class ESMModelArgs:
+class EBFMModelArgs:
     """Architecture arguments persisted indirectly through checkpoint hparams."""
 
     dim: int = 768
@@ -89,19 +86,19 @@ class ESMModelArgs:
     max_batch_size: int = 64
     max_seq_len: int = 16
     weight_initialization: str = "xavier"
-    esm_norm: str = "rms"
-    esm_act_func: str = "silu"
+    ebfm_norm: str = "rms"
+    ebfm_act_func: str = "silu"
     weight_initialization_gain: float = 1.0
     use_sdpa_attention: bool = False
     float_precision: str = "32-true"
 
 
-ESM_HEAD_DIM = 128
+EBFM_HEAD_DIM = 128
 
 
-def esm_depth_scaling(depth, aspect_ratio=64):
+def ebfm_depth_scaling(depth, aspect_ratio=64):
     base_dim = depth * aspect_ratio
-    head_dim = ESM_HEAD_DIM
+    head_dim = EBFM_HEAD_DIM
     embedding_dim = ((base_dim + head_dim - 1) // head_dim) * head_dim
     num_heads = embedding_dim // head_dim
     return {
@@ -111,7 +108,7 @@ def esm_depth_scaling(depth, aspect_ratio=64):
     }
 
 
-model_sizes = {f"d{depth}": esm_depth_scaling(depth) for depth in range(4, 29, 2)}
+model_sizes = {f"d{depth}": ebfm_depth_scaling(depth) for depth in range(4, 29, 2)}
 
 
 def init_whole_model_weights(
@@ -153,30 +150,30 @@ def init_whole_model_weights(
     model.apply(init_weights)
 
 
-def setup_esm(hparams):
+def setup_ebfm(hparams):
     """Construct the canonical time-embedding trunk from saved hparams."""
 
     max_seq_len = hparams.context_length + 1
     if not hasattr(hparams, "vocab_size"):
         raise AttributeError(
-            "hparams must define explicit vocab_size before setup_esm()"
+            "hparams must define explicit vocab_size before setup_ebfm()"
         )
-    transformer_args = ESMModelArgs(
+    transformer_args = EBFMModelArgs(
         dim=hparams.embedding_dim,
         n_layers=hparams.num_transformer_blocks,
         n_heads=hparams.multiheaded_attention_heads,
         max_batch_size=hparams.batch_size_per_device,
         max_seq_len=max_seq_len,
         weight_initialization=hparams.weight_initialization_method,
-        esm_norm=hparams.esm_norm,
+        ebfm_norm=hparams.ebfm_norm,
         ffn_dim_multiplier=hparams.ffn_dim_multiplier,
-        esm_act_func=hparams.esm_act_func,
+        ebfm_act_func=hparams.ebfm_act_func,
         weight_initialization_gain=hparams.weight_initialization_gain,
         vocab_size=hparams.vocab_size,
         use_sdpa_attention=getattr(hparams, "use_sdpa_attention", False),
         float_precision=getattr(hparams, "float_precision", "32-true"),
     )
-    return ESMTimeConcat(
+    return EBFMTimeConcat(
         params=transformer_args,
         gradient_checkpointing=getattr(hparams, "gradient_checkpointing", False),
     )
@@ -411,12 +408,12 @@ def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
 class Attention(nn.Module):
     """Multi-head attention module."""
 
-    def __init__(self, layer_id: int, args: ESMModelArgs):
+    def __init__(self, layer_id: int, args: EBFMModelArgs):
         """
         Initialize the Attention module.
 
         Args:
-            args (ESMModelArgs): Model configuration parameters.
+            args (EBFMModelArgs): Model configuration parameters.
 
         Attributes:
             n_kv_heads (int): Number of key and value heads.
@@ -677,7 +674,7 @@ class FeedForward(nn.Module):
         dim: int,
         ffn_dim_multiplier: Optional[float],
         weight_initialization: str,
-        esm_act_func: str = "silu",
+        ebfm_act_func: str = "silu",
         weight_initialization_gain: float = 1.0,
     ):
         """
@@ -722,7 +719,7 @@ class FeedForward(nn.Module):
         )
 
         self.act_func = {"silu": F.silu, "relu": F.relu, "gelu": F.gelu, "elu": F.elu}[
-            esm_act_func
+            ebfm_act_func
         ]
 
     def forward(self, x):
@@ -730,13 +727,13 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, layer_id: int, args: ESMModelArgs):
+    def __init__(self, layer_id: int, args: EBFMModelArgs):
         """
         Initialize a TransformerBlock.
 
         Args:
             layer_id (int): Identifier for the layer.
-            args (ESMModelArgs): Model configuration parameters.
+            args (EBFMModelArgs): Model configuration parameters.
 
         Attributes:
             n_heads (int): Number of attention heads.
@@ -758,13 +755,13 @@ class TransformerBlock(nn.Module):
             dim=args.dim,
             ffn_dim_multiplier=args.ffn_dim_multiplier,
             weight_initialization=args.weight_initialization,
-            esm_act_func=args.esm_act_func,
+            ebfm_act_func=args.ebfm_act_func,
             weight_initialization_gain=args.weight_initialization_gain,
         )
         self.layer_id = layer_id
         use_fp32 = getattr(args, "float_precision", "") != "bf16-true"
-        if args.esm_norm != "rms":
-            raise ValueError(f"Invalid esm_norm value: {args.esm_norm}")
+        if args.ebfm_norm != "rms":
+            raise ValueError(f"Invalid ebfm_norm value: {args.ebfm_norm}")
         self.attention_norm = RMSNorm(
             args.dim, eps=args.norm_eps, use_fp32_norm=use_fp32
         )
@@ -796,15 +793,15 @@ class TransformerBlock(nn.Module):
         return out
 
 
-class ESMTimeConcat(nn.Module):
-    def __init__(self, params: ESMModelArgs, gradient_checkpointing=False):
+class EBFMTimeConcat(nn.Module):
+    def __init__(self, params: EBFMModelArgs, gradient_checkpointing=False):
         """
         Initialize a Transformer model.
 
         Args:
-            params (ESMModelArgs): Model configuration parameters.
+            params (EBFMModelArgs): Model configuration parameters.
         Attributes:
-            params (ESMModelArgs): Model configuration parameters.
+            params (EBFMModelArgs): Model configuration parameters.
             n_layers (int): Number of layers in the model.
             layers (torch.nn.ModuleList): List of Transformer blocks.
             norm (RMSNorm): Layer normalization for the model output.
@@ -821,8 +818,8 @@ class ESMTimeConcat(nn.Module):
             self.layers.append(TransformerBlock(layer_id, params))
 
         use_fp32 = getattr(params, "float_precision", "") != "bf16-true"
-        if params.esm_norm != "rms":
-            raise ValueError(f"Invalid esm_norm value: {params.esm_norm}")
+        if params.ebfm_norm != "rms":
+            raise ValueError(f"Invalid ebfm_norm value: {params.ebfm_norm}")
         self.norm = RMSNorm(params.dim, eps=params.norm_eps, use_fp32_norm=use_fp32)
 
         freqs_cos, freqs_sin = precompute_freqs_cis(
@@ -913,7 +910,7 @@ class ESMTimeConcat(nn.Module):
 
 
 class _HParams(dict):
-    """Small attribute-accessible mapping used by the ESM module."""
+    """Small attribute-accessible mapping used by the EBFM module."""
 
     def __getattr__(self, name):
         try:
@@ -925,8 +922,8 @@ class _HParams(dict):
         self[name] = value
 
 
-class _ESMModule(nn.Module):
-    """Minimal ESM base module; training lifecycle belongs to ``ModelTrainer``."""
+class _EBFMModule(nn.Module):
+    """Minimal EBFM base module; training lifecycle belongs to ``ModelTrainer``."""
 
     def __init__(self):
         super().__init__()
@@ -948,8 +945,8 @@ PRECISION_TO_MCMC_DTYPE = {
 }
 
 
-class ESM_NLP(_ESMModule):
-    """ESM's single paper path for NLP training and validation."""
+class EBFM_NLP(_EBFMModule):
+    """EBFM's single paper path for NLP training and validation."""
 
     def __init__(self, hparams):
         super().__init__()
@@ -996,7 +993,7 @@ class ESM_NLP(_ESMModule):
             weight_initialization_gain=self.hparams.weight_initialization_gain,
         )
 
-        self.transformer = setup_esm(self.hparams)
+        self.transformer = setup_ebfm(self.hparams)
 
         self.use_tf_head = True
         self.use_free_embedding_mcmc = True
@@ -1023,7 +1020,7 @@ class ESM_NLP(_ESMModule):
             actual = getattr(self.hparams, name, None)
             if actual != expected:
                 raise ValueError(
-                    f"ESM only supports the paper path: {name}={expected!r}; "
+                    f"EBFM only supports the paper path: {name}={expected!r}; "
                     f"received {actual!r}."
                 )
 
@@ -1031,7 +1028,7 @@ class ESM_NLP(_ESMModule):
         if model_size is not None and model_size not in model_sizes:
             valid_sizes = ", ".join(model_sizes)
             raise ValueError(
-                f"unsupported ESM model_size={model_size!r}; use one of: {valid_sizes}"
+                f"unsupported EBFM model_size={model_size!r}; use one of: {valid_sizes}"
             )
 
     def _apply(self, fn):
@@ -1078,7 +1075,7 @@ class ESM_NLP(_ESMModule):
             torch.isnan(predicted_tokens_grad).any()
             or torch.isinf(predicted_tokens_grad).any()
         ):
-            raise ValueError("NaN or Inf gradients detected during ESM MCMC.")
+            raise ValueError("NaN or Inf gradients detected during EBFM MCMC.")
 
         alpha = torch.clamp(self.alpha, min=0.0001).float()
         predicted_tokens = (predicted_tokens - alpha * predicted_tokens_grad).to(
@@ -1145,7 +1142,7 @@ class ESM_NLP(_ESMModule):
         )
         pred_hidden = predicted_hiddens[-1]
         if pred_hidden is None:
-            raise RuntimeError("ESM did not return the post-update hidden state.")
+            raise RuntimeError("EBFM did not return the post-update hidden state.")
 
         logits = self.tf_head(pred_hidden, self.embeddings(input_ids))
         logits_2d = logits.reshape(-1, self.vocab_size)
@@ -1284,7 +1281,7 @@ class StandaloneTokenizer:
         return self.encoding.decode(token_ids)
 
 
-class ESMTokenizerWrapper:
+class EBFMTokenizerWrapper:
     """Minimal tokenizer adapter required while reconstructing the model."""
 
     def __init__(self, tokenizer_obj):
@@ -1342,7 +1339,7 @@ def get_tokenizer(tokenizer_dir):
     """Load ``tokenizer.pkl`` from a model repository directory."""
 
     if tokenizer_dir is None:
-        raise ValueError("tokenizer_dir is required when loading an ESM checkpoint")
+        raise ValueError("tokenizer_dir is required when loading an EBFM checkpoint")
     return StandaloneTokenizer.from_directory(tokenizer_dir)
 
 
@@ -1395,7 +1392,7 @@ def build_tf_head(hparams) -> nn.Module:
     head_type = getattr(hparams, "tf_head_type", "direct_unembed")
     if head_type != "direct_unembed":
         raise ValueError(
-            f"ESM only supports tf_head_type='direct_unembed'; received {head_type!r}."
+            f"EBFM only supports tf_head_type='direct_unembed'; received {head_type!r}."
         )
     return TFDirectUnembedHead(
         dim=int(hparams.embedding_dim),
@@ -1403,7 +1400,7 @@ def build_tf_head(hparams) -> nn.Module:
     )
 
 
-class ESMInferenceWrapper:
+class EBFMInferenceWrapper:
     """Small inference adapter shared by BPB, CORE and generation code."""
 
     def __init__(self, model, tokenizer, device, max_seq_len: int = 256):
@@ -1464,7 +1461,7 @@ class ESMInferenceWrapper:
 
             if not distributions or distributions[-1] is None:
                 raise RuntimeError(
-                    "ESM returned no final logits; check TF-head/free-embedding settings."
+                    "EBFM returned no final logits; check TF-head/free-embedding settings."
                 )
             logits = distributions[-1]
             if targets is None:
@@ -1526,6 +1523,26 @@ def _is_huggingface_source(source: str | os.PathLike[str]) -> bool:
     return not str(source).lower().endswith((".ckpt", ".pt", ".pth"))
 
 
+def _resolve_hf_tokenizer_source(source, tokenizer_path):
+    """Pick where the tokenizer comes from for a Hugging Face checkpoint source.
+
+    A local export may carry only the model (``config.json`` +
+    ``model.safetensors``); when it has no ``tokenizer.pkl`` next to it, reuse
+    the shared tokenizer directory the training pipeline uses.
+    """
+
+    if tokenizer_path:
+        return tokenizer_path
+    source_str = os.fspath(source)
+    if os.path.isdir(source_str):
+        if os.path.exists(os.path.join(source_str, "tokenizer.pkl")):
+            return source
+        from ebfm.common import get_base_dir
+
+        return os.path.join(get_base_dir(), "tokenizer")
+    return source
+
+
 def _load_huggingface_checkpoint(
     source: str | os.PathLike[str],
     *,
@@ -1535,33 +1552,33 @@ def _load_huggingface_checkpoint(
 ):
     """Load a Transformers model and expose the legacy inference interface."""
 
-    hf_model_class = globals().get("ESMForMaskedLM")
-    hf_tokenizer_class = globals().get("ESMTokenizer")
+    hf_model_class = globals().get("EBFMForMaskedLM")
+    hf_tokenizer_class = globals().get("EBFMTokenizer")
     if hf_model_class is None or hf_tokenizer_class is None:
         raise ImportError(
-            "Loading a Hugging Face ESM model requires the optional dependencies. "
+            "Loading a Hugging Face EBFM model requires the optional dependencies. "
             "Install them with `uv sync --extra hf --extra gpu` or `--extra cpu`."
         )
 
     model = hf_model_class.from_pretrained(os.fspath(source))
-    tokenizer_source = tokenizer_path or source
+    tokenizer_source = _resolve_hf_tokenizer_source(source, tokenizer_path)
     tokenizer = hf_tokenizer_class.from_pretrained(os.fspath(tokenizer_source))
     legacy_tokenizer = tokenizer._encoding
 
     model = model.to(device=device, dtype=dtype)
     model.eval()
-    model.esm.eval()
+    model.ebfm.eval()
 
     hparams = model.config.to_hparams()
     hparams["tokenizer_dir"] = os.fspath(tokenizer_source)
-    wrapper = ESMInferenceWrapper(
-        model.esm,
-        ESMTokenizerWrapper(tokenizer_obj=legacy_tokenizer),
+    wrapper = EBFMInferenceWrapper(
+        model.ebfm,
+        EBFMTokenizerWrapper(tokenizer_obj=legacy_tokenizer),
         device,
         max_seq_len=int(hparams.get("context_length", 256)),
     )
     print(
-        f"[checkpoint] loaded Hugging Face model={hparams.get('model_name', 'esm')} "
+        f"[checkpoint] loaded Hugging Face model={hparams.get('model_name', 'ebfm')} "
         f"size={hparams.get('model_size', 'unknown')} "
         f"context={hparams.get('context_length', 256)}"
     )
@@ -1572,10 +1589,10 @@ def _normalize_checkpoint_hparams(hparams, tokenizer):
     hparams = dict(hparams)
     if hparams.get("time_embedding") is None:
         hparams["time_embedding"] = True
-    if not hparams.get("esm_norm"):
-        hparams["esm_norm"] = hparams.get("ebt_norm") or "rms"
-    if not hparams.get("esm_act_func"):
-        hparams["esm_act_func"] = hparams.get("ebt_act_func") or "silu"
+    if not hparams.get("ebfm_norm"):
+        hparams["ebfm_norm"] = hparams.get("ebt_norm") or "rms"
+    if not hparams.get("ebfm_act_func"):
+        hparams["ebfm_act_func"] = hparams.get("ebt_act_func") or "silu"
     if not hparams.get("vocab_size"):
         hparams["vocab_size"] = tokenizer.get_vocab_size()
     hparams.setdefault("float_precision", "32-true")
@@ -1587,7 +1604,7 @@ def _normalize_checkpoint_hparams(hparams, tokenizer):
 
 
 def _normalize_legacy_state_dict(state_dict):
-    """Convert Lightning state-dict keys to canonical ESM module keys."""
+    """Convert Lightning state-dict keys to canonical EBFM module keys."""
 
     normalized = {}
     for key, value in state_dict.items():
@@ -1632,7 +1649,7 @@ def load_checkpoint(
     """Load a Lightning checkpoint or Transformers model.
 
     The return value is ``(model, tokenizer, hparams, device)``. ``model`` is
-    always an :class:`ESMInferenceWrapper`, so chat and evaluation code can use
+    always an :class:`EBFMInferenceWrapper`, so chat and evaluation code can use
     the same interface for all supported model sources. ``checkpoint_path``
     may be a Lightning ``.ckpt`` file, a local Transformers directory, or a
     Hugging Face Hub model ID.
@@ -1680,14 +1697,14 @@ def load_checkpoint(
 
     tokenizer = get_tokenizer(tokenizer_dir=tokenizer_dir)
     hparams = _normalize_checkpoint_hparams(hparams, tokenizer)
-    hparams["tokenizer_obj"] = ESMTokenizerWrapper(tokenizer_obj=tokenizer)
+    hparams["tokenizer_obj"] = EBFMTokenizerWrapper(tokenizer_obj=tokenizer)
     if resolved_dtype == torch.bfloat16:
         hparams["float_precision"] = "bf16-true"
     elif resolved_dtype == torch.float16:
         hparams["float_precision"] = "16-mixed"
     else:
         hparams["float_precision"] = "32-true"
-    model = ESM_NLP(hparams)
+    model = EBFM_NLP(hparams)
     state_dict = checkpoint.get("state_dict", checkpoint)
     model_state_dict = _normalize_legacy_state_dict(state_dict)
 
@@ -1695,14 +1712,14 @@ def load_checkpoint(
     model.eval()
     model = model.to(device=resolved_device, dtype=resolved_dtype)
     model.eval()
-    wrapped = ESMInferenceWrapper(
+    wrapped = EBFMInferenceWrapper(
         model,
-        ESMTokenizerWrapper(tokenizer_obj=tokenizer),
+        EBFMTokenizerWrapper(tokenizer_obj=tokenizer),
         resolved_device,
         max_seq_len=int(hparams.get("context_length", 256)),
     )
     print(
-        f"[checkpoint] loaded model={hparams.get('model_name', 'esm')} "
+        f"[checkpoint] loaded model={hparams.get('model_name', 'ebfm')} "
         f"size={hparams.get('model_size', 'unknown')} "
         f"context={hparams.get('context_length', 256)}"
     )
@@ -1719,40 +1736,40 @@ class _VocabularyOnlyTokenizer:
         return self.vocab_size
 
 
-if ESMConfig is not None and PreTrainedModel is not None and PreTrainedTokenizer is not None:
+if EBFMConfig is not None and PreTrainedModel is not None and PreTrainedTokenizer is not None:
 
-    class ESMPreTrainedModel(PreTrainedModel):
-        """Shared Transformers base class for ESM models."""
+    class EBFMPreTrainedModel(PreTrainedModel):
+        """Shared Transformers base class for EBFM models."""
 
-        config_class = ESMConfig
-        base_model_prefix = "esm"
+        config_class = EBFMConfig
+        base_model_prefix = "ebfm"
         main_input_name = "input_ids"
 
         def _init_weights(self, module):
             del module
 
 
-    class ESMForMaskedLM(ESMPreTrainedModel):
-        """Hugging Face wrapper exposing ESM token logits."""
+    class EBFMForMaskedLM(EBFMPreTrainedModel):
+        """Hugging Face wrapper exposing EBFM token logits."""
 
         def __init__(self, config):
             super().__init__(config)
             hparams = config.to_hparams()
             hparams["tokenizer_obj"] = _VocabularyOnlyTokenizer(config.vocab_size)
-            self.esm = ESM_NLP(hparams)
+            self.ebfm = EBFM_NLP(hparams)
             self.post_init()
 
         def get_input_embeddings(self):
-            return self.esm.embeddings
+            return self.ebfm.embeddings
 
         def set_input_embeddings(self, value):
-            self.esm.embeddings = value
+            self.ebfm.embeddings = value
 
         def get_output_embeddings(self):
-            return self.esm.tf_head.proj
+            return self.ebfm.tf_head.proj
 
         def set_output_embeddings(self, value):
-            self.esm.tf_head.proj = value
+            self.ebfm.tf_head.proj = value
 
         def forward(
             self,
@@ -1788,15 +1805,15 @@ if ESMConfig is not None and PreTrainedModel is not None and PreTrainedTokenizer
                 else nullcontext()
             )
             with autocast_context:
-                _, _, hidden_states = self.esm(
+                _, _, hidden_states = self.ebfm(
                     input_ids,
                     learning=self.training,
                     return_pred_hiddens=True,
                 )
                 hidden = hidden_states[-1]
                 if hidden is None:
-                    raise RuntimeError("ESM did not return the post-update hidden state")
-                logits = self.esm.tf_head(hidden, self.esm.embeddings(input_ids))
+                    raise RuntimeError("EBFM did not return the post-update hidden state")
+                logits = self.ebfm.tf_head(hidden, self.ebfm.embeddings(input_ids))
 
                 loss = None
                 if labels is not None:
@@ -1833,35 +1850,57 @@ if ESMConfig is not None and PreTrainedModel is not None and PreTrainedTokenizer
                 )
             tokenizer = get_tokenizer(tokenizer_dir)
             hparams = _normalize_checkpoint_hparams(hparams, tokenizer)
-            config = ESMConfig.from_legacy_hparams(
+            config = EBFMConfig.from_legacy_hparams(
                 hparams, vocab_size=tokenizer.get_vocab_size()
             )
             model = cls(config)
             canonical_state = _normalize_legacy_state_dict(
                 checkpoint.get("state_dict", checkpoint)
             )
-            hf_state = {f"esm.{key}": value for key, value in canonical_state.items()}
+            hf_state = {f"ebfm.{key}": value for key, value in canonical_state.items()}
             incompatible = model.load_state_dict(hf_state, strict=False)
             if incompatible.missing_keys or incompatible.unexpected_keys:
                 raise RuntimeError(
-                    "Legacy checkpoint does not match the ESM Transformers wrapper: "
+                    "Legacy checkpoint does not match the EBFM Transformers wrapper: "
                     f"missing={incompatible.missing_keys[:5]}, "
                     f"unexpected={incompatible.unexpected_keys[:5]}"
                 )
             return model, tokenizer
 
 
-    class ESMTokenizer(PreTrainedTokenizer):
-        """Transformers tokenizer backed by ESM's serialized RustBPE data."""
+    class EBFMTokenizer(PreTrainedTokenizer):
+        """Transformers tokenizer backed by EBFM's serialized RustBPE data."""
 
         model_input_names = ["input_ids", "attention_mask"]
         vocab_files_names = {"tokenizer_file": "tokenizer.pkl"}
 
         @classmethod
         def from_pretrained(cls, pretrained_model_name_or_path, *init_inputs, **kwargs):
-            model_path = Path(str(pretrained_model_name_or_path)).expanduser()
-            if model_path.is_dir() and "tokenizer_file" not in kwargs:
-                kwargs["tokenizer_file"] = str(model_path / "tokenizer.pkl")
+            if "tokenizer_file" not in kwargs:
+                model_path = Path(str(pretrained_model_name_or_path)).expanduser()
+                if model_path.is_dir():
+                    kwargs["tokenizer_file"] = str(model_path / "tokenizer.pkl")
+                else:
+                    # Repo id (or Hub reference): fetch tokenizer.pkl so the pkl is
+                    # resolved from the Hub instead of the current directory.
+                    from huggingface_hub import hf_hub_download
+
+                    hub_kwargs = {
+                        key: kwargs[key]
+                        for key in (
+                            "cache_dir",
+                            "revision",
+                            "subfolder",
+                            "token",
+                            "local_files_only",
+                        )
+                        if key in kwargs
+                    }
+                    kwargs["tokenizer_file"] = hf_hub_download(
+                        repo_id=str(pretrained_model_name_or_path),
+                        filename="tokenizer.pkl",
+                        **hub_kwargs,
+                    )
             return super().from_pretrained(
                 pretrained_model_name_or_path, *init_inputs, **kwargs
             )
@@ -1869,7 +1908,10 @@ if ESMConfig is not None and PreTrainedModel is not None and PreTrainedTokenizer
         def __init__(self, tokenizer_file=None, **kwargs):
             if tokenizer_file is None:
                 tokenizer_file = "tokenizer.pkl"
-            tokenizer_file = Path(tokenizer_file).expanduser().resolve()
+            # absolute() keeps a Hub cache symlink (snapshots/<rev>/tokenizer.pkl)
+            # intact; resolve() would dereference it to blobs/<hash>, hiding the
+            # directory that StandaloneTokenizer.from_directory needs.
+            tokenizer_file = Path(tokenizer_file).expanduser().absolute()
             self._tokenizer_file = tokenizer_file
             self._encoding = StandaloneTokenizer.from_directory(tokenizer_file.parent)
             self._special_ids = {
@@ -1940,19 +1982,19 @@ if ESMConfig is not None and PreTrainedModel is not None and PreTrainedTokenizer
             return (str(target),)
 
 else:
-    ESMConfig = None
-    ESMPreTrainedModel = None
-    ESMForMaskedLM = None
-    ESMTokenizer = None
+    EBFMConfig = None
+    EBFMPreTrainedModel = None
+    EBFMForMaskedLM = None
+    EBFMTokenizer = None
 
 
 __all__ = [
-    "ESMConfig",
-    "ESMPreTrainedModel",
-    "ESMForMaskedLM",
-    "ESMTokenizer",
-    "ESMModelArgs",
-    "ESMInferenceWrapper",
+    "EBFMConfig",
+    "EBFMPreTrainedModel",
+    "EBFMForMaskedLM",
+    "EBFMTokenizer",
+    "EBFMModelArgs",
+    "EBFMInferenceWrapper",
     "load_checkpoint",
     "resolve_tokenizer_dir",
     "load_checkpoint_file",
@@ -1960,9 +2002,9 @@ __all__ = [
     "get_token_bytes",
     "calculate_bpb_score",
     "StandaloneTokenizer",
-    "ESMTokenizerWrapper",
-    "ESM_NLP",
-    "ESMTimeConcat",
+    "EBFMTokenizerWrapper",
+    "EBFM_NLP",
+    "EBFMTimeConcat",
     "PRECISION_TO_MCMC_DTYPE",
     "Attention",
     "FeedForward",
@@ -1976,5 +2018,5 @@ __all__ = [
     "TFDirectUnembedHead",
     "init_wandb_watch",
     "init_whole_model_weights",
-    "setup_esm",
+    "setup_ebfm",
 ]

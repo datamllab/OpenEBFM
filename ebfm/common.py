@@ -1,5 +1,5 @@
 """
-Common utilities for esm.
+Common utilities for ebfm.
 """
 
 import os
@@ -62,14 +62,14 @@ logger = logging.getLogger(__name__)
 
 def get_base_dir():
 
-    if os.environ.get("ESM_BASE_DIR"):
-        esm_dir = os.environ.get("ESM_BASE_DIR")
+    if os.environ.get("EBFM_BASE_DIR"):
+        ebfm_dir = os.environ.get("EBFM_BASE_DIR")
     else:
         home_dir = os.path.expanduser("~")
         cache_dir = os.path.join(home_dir, ".cache")
-        esm_dir = os.path.join(cache_dir, "esm")
-    os.makedirs(esm_dir, exist_ok=True)
-    return esm_dir
+        ebfm_dir = os.path.join(cache_dir, "ebfm")
+    os.makedirs(ebfm_dir, exist_ok=True)
+    return ebfm_dir
 
 
 def download_file_with_lock(url, filename, postprocess_fn=None):

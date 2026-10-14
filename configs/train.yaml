@@ -1,22 +1,22 @@
 
-model_name: "esm"
+model_name: "ebfm"
 model_size: "d6"
 modality: "NLP"
 time_embedding: true
-tokenizer: "esm_bpe"
+tokenizer: "ebfm_bpe"
 vocab_size: 32768
 
 dataset_name: "dclm"
-dataset_arg_name: "esm"
+dataset_arg_name: "ebfm"
 base_train_dataset: "dclm"
-base_train_data_root: "${ESM_DATA_ROOT:-data}"
-esm_asset_root: "${ESM_ASSET_ROOT:-.cache}"
+base_train_data_root: "${EBFM_DATA_ROOT:-data}"
+ebfm_asset_root: "${EBFM_ASSET_ROOT:-.cache}"
 
 node_count: 1
 gpus: -1
 cuda_visible_devices: "1,2,3,4"
-device_batch_size: 4
-global_batch_size: 512
+device_batch_size: 2
+global_batch_size: 8
 context_length: 2048
 
 target_total_tokens: "${TARGET_TOTAL_TOKENS:-100000000}"
@@ -56,8 +56,8 @@ adamw_vocab_to_embed_lr: 0.01
 adamw_scalar_lr: 0.04
 adamw_dmodel_lr_scaling: true
 ffn_dim_multiplier: 2.67
-esm_act_func: "silu"
-esm_norm: "rms"
+ebfm_act_func: "silu"
+ebfm_norm: "rms"
 weight_initialization_method: "xavier"
 weight_initialization_gain: 1.0
 gaussian_random_noise_scaling: 1.0
@@ -78,8 +78,8 @@ float_precision: "bf16-mixed"
 manual_gc_steps: -1
 log_model_archi: true
 compile_flags: "--compile_model --compile_mode transformer_only"
-output_root: "${ESM_OUTPUT_ROOT:-.}"
-log_root: "${ESM_LOG_ROOT:-}"
+output_root: "${EBFM_OUTPUT_ROOT:-.}"
+log_root: "${EBFM_LOG_ROOT:-}"
 checkpoint_root: ""
-checkpoint_dir: "${ESM_CHECKPOINT_DIR:-}"
-wandb_save_dir: "${ESM_WANDB_DIR:-}"
+checkpoint_dir: "${EBFM_CHECKPOINT_DIR:-}"
+wandb_save_dir: "${EBFM_WANDB_DIR:-}"

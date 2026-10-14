@@ -1,4 +1,4 @@
-"""Functions for evaluating CORE tasks using an ESM checkpoint."""
+"""Functions for evaluating CORE tasks using an EBFM checkpoint."""
 
 import random
 

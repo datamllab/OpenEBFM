@@ -1,30 +1,30 @@
-"""Hugging Face configuration for the canonical ESM architecture."""
+"""Hugging Face configuration for the canonical EBFM architecture."""
 
 from transformers import PretrainedConfig
 
 
-ESM_HEAD_DIM = 128
+EBFM_HEAD_DIM = 128
 
 
-def _esm_depth_scaling(depth, aspect_ratio=64):
+def _ebfm_depth_scaling(depth, aspect_ratio=64):
     base_dim = depth * aspect_ratio
-    embedding_dim = ((base_dim + ESM_HEAD_DIM - 1) // ESM_HEAD_DIM) * ESM_HEAD_DIM
+    embedding_dim = ((base_dim + EBFM_HEAD_DIM - 1) // EBFM_HEAD_DIM) * EBFM_HEAD_DIM
     return {
         "num_transformer_blocks": depth,
         "embedding_dim": embedding_dim,
-        "multiheaded_attention_heads": embedding_dim // ESM_HEAD_DIM,
+        "multiheaded_attention_heads": embedding_dim // EBFM_HEAD_DIM,
     }
 
 
 MODEL_SIZES = {
-    f"d{depth}": _esm_depth_scaling(depth) for depth in range(4, 29, 2)
+    f"d{depth}": _ebfm_depth_scaling(depth) for depth in range(4, 29, 2)
 }
 
 
-class ESMConfig(PretrainedConfig):
+class EBFMConfig(PretrainedConfig):
     """Configuration persisted in a Transformers model repository."""
 
-    model_type = "esm"
+    model_type = "ebfm"
 
     def __init__(
         self,
@@ -37,8 +37,8 @@ class ESMConfig(PretrainedConfig):
         batch_size_per_device=1,
         weight_initialization_method="xavier",
         weight_initialization_gain=1.0,
-        esm_norm="rms",
-        esm_act_func="silu",
+        ebfm_norm="rms",
+        ebfm_act_func="silu",
         ffn_dim_multiplier=None,
         use_sdpa_attention=False,
         float_precision="32-true",
@@ -55,11 +55,11 @@ class ESMConfig(PretrainedConfig):
         if model_size not in MODEL_SIZES:
             valid_sizes = ", ".join(MODEL_SIZES)
             raise ValueError(
-                f"unsupported ESM model_size={model_size!r}; "
+                f"unsupported EBFM model_size={model_size!r}; "
                 f"use one of: {valid_sizes}"
             )
         size_defaults = MODEL_SIZES[model_size]
-        self.model_name = kwargs.pop("model_name", "esm")
+        self.model_name = kwargs.pop("model_name", "ebfm")
         self.model_size = model_size
         self.modality = kwargs.pop("modality", "NLP")
         self.time_embedding = kwargs.pop("time_embedding", True)
@@ -76,8 +76,8 @@ class ESMConfig(PretrainedConfig):
         self.batch_size_per_device = int(batch_size_per_device)
         self.weight_initialization_method = weight_initialization_method
         self.weight_initialization_gain = float(weight_initialization_gain)
-        self.esm_norm = esm_norm
-        self.esm_act_func = esm_act_func
+        self.ebfm_norm = ebfm_norm
+        self.ebfm_act_func = ebfm_act_func
         self.ffn_dim_multiplier = ffn_dim_multiplier
         self.use_sdpa_attention = bool(use_sdpa_attention)
         self.float_precision = float_precision
@@ -91,13 +91,13 @@ class ESMConfig(PretrainedConfig):
         self.tf_head_type = tf_head_type
         self.use_tf_head = True
         self.free_embedding_mcmc = True
-        self.architectures = kwargs.pop("architectures", ["ESMForMaskedLM"])
+        self.architectures = kwargs.pop("architectures", ["EBFMForMaskedLM"])
         kwargs.setdefault(
             "auto_map",
             {
-                "AutoConfig": "configuration_esm.ESMConfig",
-                "AutoModelForMaskedLM": "modeling_esm.ESMForMaskedLM",
-                "AutoTokenizer": ["modeling_esm.ESMTokenizer", None],
+                "AutoConfig": "configuration_ebfm.EBFMConfig",
+                "AutoModelForMaskedLM": "modeling_ebfm.EBFMForMaskedLM",
+                "AutoTokenizer": ["modeling_ebfm.EBFMTokenizer", None],
             },
         )
         kwargs.setdefault("tie_word_embeddings", False)
@@ -121,8 +121,8 @@ class ESMConfig(PretrainedConfig):
                 "batch_size_per_device",
                 "weight_initialization_method",
                 "weight_initialization_gain",
-                "esm_norm",
-                "esm_act_func",
+                "ebfm_norm",
+                "ebfm_act_func",
                 "ffn_dim_multiplier",
                 "use_sdpa_attention",
                 "float_precision",
@@ -158,8 +158,8 @@ class ESMConfig(PretrainedConfig):
                 "batch_size_per_device",
                 "weight_initialization_method",
                 "weight_initialization_gain",
-                "esm_norm",
-                "esm_act_func",
+                "ebfm_norm",
+                "ebfm_act_func",
                 "ffn_dim_multiplier",
                 "use_sdpa_attention",
                 "float_precision",
@@ -177,4 +177,4 @@ class ESMConfig(PretrainedConfig):
         }
 
 
-__all__ = ["ESMConfig", "MODEL_SIZES"]
+__all__ = ["EBFMConfig", "MODEL_SIZES"]

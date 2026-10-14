@@ -1,6 +1,6 @@
 import torch
 
-from esm.dataset_sft import _build_sft_inputs_and_targets
+from ebfm.dataset_sft import _build_sft_inputs_and_targets
 
 
 def test_sft_mask_correctness_keeps_only_assistant_targets():

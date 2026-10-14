@@ -85,8 +85,8 @@ class MMLU(Task):
 
         cache_dir = None
         download_mode = None
-        if os.environ.get("ESM_SFT_DATA_DIR"):
-            cache_dir = os.path.join(os.environ["ESM_SFT_DATA_DIR"], "mmlu")
+        if os.environ.get("EBFM_SFT_DATA_DIR"):
+            cache_dir = os.path.join(os.environ["EBFM_SFT_DATA_DIR"], "mmlu")
             if os.path.exists(cache_dir):
                 download_mode = "reuse_cache_if_exists"
             else:

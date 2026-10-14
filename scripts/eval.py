@@ -1,4 +1,4 @@
-"""Unified ESM evaluation entry point.
+"""Unified EBFM evaluation entry point.
 
 The first-class default is position-wise BPB.  CORE remains available through
 the same entry point with ``--task core`` and uses the same checkpoint loader.
@@ -23,7 +23,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Iterable
 
-from esm.config import REPO_ROOT, parse_with_config, print_resolved_config, resolve_path
+from ebfm.config import REPO_ROOT, parse_with_config, print_resolved_config, resolve_path
 
 torch = None
 F = None
@@ -32,7 +32,7 @@ np = None
 yaml = None
 tqdm = None
 evaluate_example = None
-_esm_evaluate_task = None
+_ebfm_evaluate_task = None
 forward_model = None
 render_prompts_mc = None
 render_prompts_schema = None
@@ -47,7 +47,7 @@ def _load_core_runtime() -> None:
     """Load optional torch/CORE dependencies only when evaluation is run."""
 
     global torch, F, mp, np, yaml, tqdm
-    global evaluate_example, _esm_evaluate_task, forward_model
+    global evaluate_example, _ebfm_evaluate_task, forward_model
     global render_prompts_mc, render_prompts_schema, render_prompts_lm
     global \
         batch_sequences_mc, \
@@ -58,7 +58,7 @@ def _load_core_runtime() -> None:
     if torch is not None and forward_model is not None:
         return
 
-    from esm.config import bootstrap_assets
+    from ebfm.config import bootstrap_assets
 
     bootstrap_assets("eval")
 
@@ -68,7 +68,7 @@ def _load_core_runtime() -> None:
     import numpy as _np
     import yaml as _yaml
     from tqdm import tqdm as _tqdm
-    from esm.core_eval import (
+    from ebfm.core_eval import (
         evaluate_example as _evaluate_example,
         evaluate_task as _evaluate_task,
         forward_model as _forward_model,
@@ -88,7 +88,7 @@ def _load_core_runtime() -> None:
     yaml = _yaml
     tqdm = _tqdm
     evaluate_example = _evaluate_example
-    _esm_evaluate_task = _evaluate_task
+    _ebfm_evaluate_task = _evaluate_task
     forward_model = _forward_model
     render_prompts_mc = _render_prompts_mc
     render_prompts_schema = _render_prompts_schema
@@ -112,7 +112,7 @@ def _no_grad(function):
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Evaluate an ESM checkpoint")
+    parser = argparse.ArgumentParser(description="Evaluate an EBFM checkpoint")
     parser.add_argument(
         "--task", choices=("position_bpb", "core"), default="position_bpb"
     )
@@ -141,7 +141,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default="auto")
     parser.add_argument(
         "--dtype",
-        dest="esm_dtype",
+        dest="ebfm_dtype",
         choices=("auto", "bfloat16", "float32"),
         default="auto",
     )
@@ -228,7 +228,7 @@ def _validate(args: argparse.Namespace) -> None:
         "yes",
         "on",
     }:
-        raise ValueError("ESM evaluation requires time_embedding=true")
+        raise ValueError("EBFM evaluation requires time_embedding=true")
 
 
 def evaluate(args: argparse.Namespace):
@@ -242,7 +242,7 @@ def evaluate(args: argparse.Namespace):
     if args.task == "position_bpb":
         data_dir = _resolve_data_dir(args)
         delegated = argparse.Namespace(
-            esm_ckpt=Path(args.checkpoint),
+            ebfm_ckpt=Path(args.checkpoint),
             tokenizer_path=args.tokenizer_path or None,
             dataset=args.dataset,
             data_dir=data_dir,
@@ -252,7 +252,7 @@ def evaluate(args: argparse.Namespace):
             eval_batches=args.eval_batches,
             virtual_world_size=args.virtual_world_size,
             device=args.device,
-            esm_dtype=args.esm_dtype,
+            ebfm_dtype=args.ebfm_dtype,
             output_json=Path(_default_output_json(args)),
         )
         return evaluate_position_bpb(delegated)
@@ -276,7 +276,7 @@ def evaluate(args: argparse.Namespace):
         "--gpus",
         str(args.gpus),
         "--dtype",
-        "float32" if args.esm_dtype == "float32" else "bfloat16",
+        "float32" if args.ebfm_dtype == "float32" else "bfloat16",
         "--num-trajectory-samples",
         str(args.num_trajectory_samples),
     ]
@@ -289,13 +289,13 @@ def evaluate(args: argparse.Namespace):
 
 def _parse_position_bpb_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compute per-context-position BPB for an ESM checkpoint."
+        description="Compute per-context-position BPB for an EBFM checkpoint."
     )
     parser.add_argument(
-        "--esm-ckpt",
+        "--ebfm-ckpt",
         type=Path,
         required=True,
-        help="Path to the Lightning ESM .ckpt file.",
+        help="Path to the Lightning EBFM .ckpt file.",
     )
     parser.add_argument(
         "--tokenizer-path",
@@ -336,11 +336,11 @@ def _parse_position_bpb_args() -> argparse.Namespace:
         help="Device string, e.g. auto, cuda, cuda:0, or cpu.",
     )
     parser.add_argument(
-        "--esm-dtype",
+        "--ebfm-dtype",
         type=str,
         default="auto",
         choices=("auto", "bfloat16", "float32"),
-        help="Dtype used when moving the ESM model to device. auto = bfloat16 on CUDA, float32 otherwise.",
+        help="Dtype used when moving the EBFM model to device. auto = bfloat16 on CUDA, float32 otherwise.",
     )
     parser.add_argument(
         "--output-json",
@@ -369,7 +369,7 @@ def virtual_dataloader_rank(rank: int, world_size: int):
                 os.environ[key] = value
 
 
-def resolve_esm_dtype(dtype_name: str, device: torch.device) -> torch.dtype:
+def resolve_ebfm_dtype(dtype_name: str, device: torch.device) -> torch.dtype:
     if dtype_name == "bfloat16":
         return torch.bfloat16
     if dtype_name == "float32":
@@ -389,7 +389,7 @@ def collect_eval_batches(
     data_dir: Path | None,
     virtual_world_size: int = 1,
 ) -> list[tuple[torch.Tensor, torch.Tensor]]:
-    from esm.dataloader import tokenizing_distributed_data_loader_bos_bestfit
+    from ebfm.dataloader import tokenizing_distributed_data_loader_bos_bestfit
 
     batches: list[tuple[torch.Tensor, torch.Tensor]] = []
     for rank in range(virtual_world_size):
@@ -424,7 +424,7 @@ def _flatten_if_lightning_batch(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
-def esm_final_step_loss2d(model, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+def ebfm_final_step_loss2d(model, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Mirror forward_loss_wrapper's final-step CE path, but keep [B, T]."""
     input_ids = _flatten_if_lightning_batch(x)
     targets = _flatten_if_lightning_batch(y)
@@ -435,7 +435,7 @@ def esm_final_step_loss2d(model, x: torch.Tensor, y: torch.Tensor) -> torch.Tens
     )
     pred_hidden = predicted_hiddens[-1]
     if pred_hidden is None:
-        raise RuntimeError("ESM forward returned no post-update hidden state.")
+        raise RuntimeError("EBFM forward returned no post-update hidden state.")
     final_logits = model.tf_head(pred_hidden, model.embeddings(input_ids))
     per_token_ce = F.cross_entropy(
         final_logits.reshape(-1, model.vocab_size),
@@ -551,12 +551,12 @@ def compute_position_bpb(
     }
 
 
-def load_esm(args: argparse.Namespace, device: torch.device):
-    dtype = resolve_esm_dtype(args.esm_dtype, device)
-    from esm.modeling_esm import load_checkpoint
+def load_ebfm(args: argparse.Namespace, device: torch.device):
+    dtype = resolve_ebfm_dtype(args.ebfm_dtype, device)
+    from ebfm.modeling_ebfm import load_checkpoint
 
     wrapper, tokenizer, hparams, _ = load_checkpoint(
-        str(args.esm_ckpt),
+        str(args.ebfm_ckpt),
         device=device,
         dtype=dtype,
         tokenizer_path=getattr(args, "tokenizer_path", None),
@@ -593,11 +593,11 @@ def evaluate_position_bpb(args: argparse.Namespace | None = None) -> None:
         else nullcontext()
     )
 
-    from esm.modeling_esm import resolve_tokenizer_dir
-    from esm.tokenizer import get_token_bytes, get_tokenizer
+    from ebfm.modeling_ebfm import resolve_tokenizer_dir
+    from ebfm.tokenizer import get_token_bytes, get_tokenizer
 
     tokenizer_path = resolve_tokenizer_dir(
-        str(args.esm_ckpt), getattr(args, "tokenizer_path", None)
+        str(args.ebfm_ckpt), getattr(args, "tokenizer_path", None)
     )
     args.tokenizer_path = tokenizer_path
     token_bytes = get_token_bytes(device=device, tokenizer_dir=tokenizer_path)
@@ -628,34 +628,34 @@ def evaluate_position_bpb(args: argparse.Namespace | None = None) -> None:
     results = {}
     model_meta = {}
 
-    print(f"Loading ESM from {args.esm_ckpt}")
-    esm_model, _, esm_hparams = load_esm(args, device)
+    print(f"Loading EBFM from {args.ebfm_ckpt}")
+    ebfm_model, _, ebfm_hparams = load_ebfm(args, device)
     if args.context_length != int(
-        esm_hparams.get("context_length", args.context_length)
+        ebfm_hparams.get("context_length", args.context_length)
     ):
         print(
             f"[warning] requested context_length={args.context_length}, "
-            f"ESM checkpoint context_length={esm_hparams.get('context_length')}"
+            f"EBFM checkpoint context_length={ebfm_hparams.get('context_length')}"
         )
 
-    print("Evaluating ESM position-wise BPB")
-    results["esm"] = compute_position_bpb(
-        "esm",
+    print("Evaluating EBFM position-wise BPB")
+    results["ebfm"] = compute_position_bpb(
+        "ebfm",
         batches,
-        loss2d_fn=lambda x, y, model=esm_model: esm_final_step_loss2d(model, x, y),
+        loss2d_fn=lambda x, y, model=ebfm_model: ebfm_final_step_loss2d(model, x, y),
         device=device,
         context_length=args.context_length,
         token_bytes=token_bytes,
         autocast_ctx=autocast_ctx,
     )
-    model_meta["esm"] = {
-        "checkpoint": str(args.esm_ckpt.resolve()),
-        "model_name": esm_hparams.get("model_name"),
-        "model_size": esm_hparams.get("model_size"),
-        "overall_bpb": results["esm"]["overall_bpb"],
-        "mean_position_bpb": results["esm"]["mean_position_bpb"],
+    model_meta["ebfm"] = {
+        "checkpoint": str(args.ebfm_ckpt.resolve()),
+        "model_name": ebfm_hparams.get("model_name"),
+        "model_size": ebfm_hparams.get("model_size"),
+        "overall_bpb": results["ebfm"]["overall_bpb"],
+        "mean_position_bpb": results["ebfm"]["mean_position_bpb"],
     }
-    del esm_model
+    del ebfm_model
     gc.collect()
     if device.type == "cuda":
         torch.cuda.empty_cache()
@@ -705,7 +705,7 @@ def load_model(ckpt_path, tokenizer_path, device, dtype=None):
     _load_core_runtime()
     if dtype is None:
         dtype = torch.bfloat16
-    from esm.modeling_esm import load_checkpoint
+    from ebfm.modeling_ebfm import load_checkpoint
 
     model, tokenizer, hparams, _ = load_checkpoint(
         ckpt_path,
@@ -717,9 +717,9 @@ def load_model(ckpt_path, tokenizer_path, device, dtype=None):
 
 
 def evaluate_task(model, tokenizer, data, device, task_meta, max_seq_len=None):
-    """Evaluate a task through the shared ESM evaluator."""
+    """Evaluate a task through the shared EBFM evaluator."""
     _load_core_runtime()
-    return _esm_evaluate_task(model, tokenizer, data, device, task_meta)
+    return _ebfm_evaluate_task(model, tokenizer, data, device, task_meta)
 
 
 @_no_grad
@@ -1401,9 +1401,9 @@ def evaluate_core_multigpu(
     }
 
 
-def _find_latest_timing(esm_dir):
+def _find_latest_timing(ebfm_dir):
     """Find the latest timing summary under ``logs/core_eval``."""
-    search_dir = os.path.join(esm_dir, "logs", "core_eval")
+    search_dir = os.path.join(ebfm_dir, "logs", "core_eval")
     if not os.path.isdir(search_dir):
         return None
     candidates = sorted(
@@ -1463,7 +1463,7 @@ def _print_eta_table(history_timing_path, tasks):
 
 def evaluate_core_cli(argv=None):
     parser = argparse.ArgumentParser(
-        description="ESM CORE Evaluation",
+        description="EBFM CORE Evaluation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -1491,7 +1491,7 @@ Examples:
         """,
     )
     parser.add_argument(
-        "--ckpt-path", type=str, required=True, help="ESM checkpoint path"
+        "--ckpt-path", type=str, required=True, help="EBFM checkpoint path"
     )
     parser.add_argument(
         "--tokenizer-path", type=str, required=True, help="Tokenizer path"
@@ -1577,10 +1577,10 @@ Examples:
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    esm_dir = str(Path(__file__).parent.parent)
+    ebfm_dir = str(Path(__file__).parent.parent)
     history_timing_path = args.history_timing
     if not history_timing_path:
-        history_timing_path = _find_latest_timing(esm_dir)
+        history_timing_path = _find_latest_timing(ebfm_dir)
     if history_timing_path and os.path.isfile(history_timing_path):
         print(f"\nFound historical timing: {history_timing_path}")
 
@@ -1620,7 +1620,7 @@ Examples:
         print(f"Using device: {device}\n")
 
         print("=" * 80)
-        print("Loading ESM Model")
+        print("Loading EBFM Model")
         print("=" * 80 + "\n")
 
         model, tokenizer, hparams = load_model(

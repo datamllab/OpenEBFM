@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="assets/openesm-github-title.png" alt="OpenESM" width=800>
+  <img src="figs/OpenEBFM_logo.png" alt="OpenEBFM" width=800>
 </p>
 
 <p align="center">
-  <a href="https://github.com/datamllab/openesm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
-  <a href="https://huggingface.co/collections/guan-wang/openesm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace"/></a>
+  <a href="https://github.com/datamllab/ebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
+  <a href="https://huggingface.co/collections/guan-wang/ebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace"/></a>
 </p>
 
 <p align="center">
-  <strong>Open-source code for training and scaling Energy-Steered Models</strong>
+  <strong>Open-source code for training and scaling Energy-based Foundation Models</strong>
 </p>
 
 <p align="center">
-  <strong>Keywords: </strong> Energy-Steered Models, language models, pretraining, scaling laws
+  <strong>Keywords: </strong> Energy-based Foundation Models, language models, pretraining, scaling laws
 </p>
 
 
@@ -72,12 +72,12 @@ and improves with training tokens.
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="figs/scaling_pretrain_dclm_validation_bpb.png" width="100%" alt="DCLM validation BPB versus training tokens"><br>DCLM pretraining</td>
-    <td align="center" width="50%"><img src="figs/dclm_best_val_bpb_vs_depth.png" width="100%" alt="DCLM validation BPB versus model size"><br>Parameter scaling</td>
+    <td align="center" width="50%"><img src="figs/dclm_pretrain.png" width="100%" alt="DCLM validation BPB versus training tokens"><br>DCLM pretraining</td>
+    <td align="center" width="50%"><img src="figs/pretrain_size.png" width="100%" alt="DCLM validation BPB versus model size"><br>Parameter scaling</td>
   </tr>
   <tr>
-    <td align="center" width="50%"><img src="figs/qa_acc_vs_model_size.png" width="100%" alt="Average zero-shot accuracy versus model size across training datasets"><br>Zero-shot model-size scaling</td>
-    <td align="center" width="50%"><img src="figs/zero_shot_acc_vs_training_tokens.png" width="100%" alt="Zero-shot accuracy versus training tokens"><br>Zero-shot token scaling</td>
+    <td align="center" width="50%"><img src="figs/acc_size.png" width="100%" alt="Average zero-shot accuracy versus model size across training datasets"><br>Zero-shot model-size scaling</td>
+    <td align="center" width="50%"><img src="figs/acc_tokens.png" width="100%" alt="Zero-shot accuracy versus training tokens"><br>Zero-shot token scaling</td>
   </tr>
 </table>
 
@@ -87,21 +87,21 @@ Use `configs/train.yaml` as the default configuration and set
 ## ⚙️ Pretrained Checkpoints
 
 Pretrained models are published in the
-[OpenESM Hugging Face collection](https://huggingface.co/collections/guan-wang/openesm).
+[EBFM Hugging Face collection](https://huggingface.co/collections/guan-wang/ebfm).
 The collection includes 160M, 520M, and 1B models trained on DCLM, FineWeb, and
 ClimbMix; one 160M OWT model; and a FineWeb SFT model named
-`ESM-FineWeb-1B-CHAT`.
+`EBFM-FineWeb-1B-CHAT`.
 
 Load a published model directly by its Hugging Face ID. The first call downloads
 and caches the weights and tokenizer:
 
 ```python
 import torch
-from esm.modeling_esm import load_checkpoint
+from ebfm.modeling_ebfm import load_checkpoint
 
-model_id = "guan-wang/ESM-FineWeb-1B-CHAT"
+model_id = "guan-wang/EBFM-FineWeb-1B-CHAT"
 model, tokenizer, hparams, device = load_checkpoint(model_id, device="cuda")
-tokens = tokenizer.encode("Hello, ESM.", append=tokenizer.get_bos_token_id())
+tokens = tokenizer.encode("Hello, EBFM.", append=tokenizer.get_bos_token_id())
 input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
 with torch.no_grad():
     logits = model(input_ids)
@@ -113,14 +113,14 @@ Replace the model ID with any repository listed in the collection.
 ## 💬 Chat Demo
 
 <p align="center">
-  <img src="figs/chat.jpg" alt="ESM Chat web interface" width="850">
+  <img src="figs/chat.jpg" alt="EBFM Chat web interface" width="850">
 </p>
 
 Run the browser chat with the published SFT model:
 
 ```bash
 bash runs/chat.sh --web \
-  --checkpoint guan-wang/ESM-FineWeb-1B-CHAT \
+  --checkpoint guan-wang/EBFM-FineWeb-1B-CHAT \
   --host 0.0.0.0 \
   --port 8000
 ```
@@ -143,29 +143,29 @@ TARGET_TOTAL_TOKENS=100000000 bash runs/train.sh
 
 # Fine-tuning: initialize from a published Hugging Face model.
 TARGET_TOTAL_TOKENS=100000000 bash runs/sft.sh \
-  --dataset_name esm_sft \
-  --finetuning_model_ckpt guan-wang/ESM-DCLM-1B
+  --dataset_name ebfm_sft \
+  --finetuning_model_ckpt guan-wang/EBFM-DCLM-1B
 
 # Position-wise BPB evaluation.
-MODEL_DIR="$(python -c 'from huggingface_hub import snapshot_download; print(snapshot_download(repo_id="guan-wang/ESM-DCLM-1B"))')"
+MODEL_DIR="$(python -c 'from huggingface_hub import snapshot_download; print(snapshot_download(repo_id="guan-wang/EBFM-DCLM-1B"))')"
 bash runs/eval.sh \
-  --checkpoint guan-wang/ESM-DCLM-1B \
+  --checkpoint guan-wang/EBFM-DCLM-1B \
   --dataset dclm \
-  --data-dir /path/to/data \
+  --data-dir data/dclm \
   --tokenizer-path "${MODEL_DIR}" \
   --output_root . \
   --run_name eval-dclm
 
 # QA evaluation.
 bash runs/qa.sh \
-  --checkpoint guan-wang/ESM-DCLM-1B \
+  --checkpoint guan-wang/EBFM-DCLM-1B \
   --tokenizer-path "${MODEL_DIR}" \
   --eval-bundle /path/to/eval_bundle \
   --output_root . \
   --run_name qa-dclm
 
 # Interactive generation.
-bash runs/chat.sh --checkpoint guan-wang/ESM-FineWeb-1B-CHAT
+bash runs/chat.sh --checkpoint guan-wang/EBFM-FineWeb-1B-CHAT
 ```
 
 Chat, validation evaluation, QA evaluation, and SFT initialization accept
@@ -185,10 +185,18 @@ Every run uses the same output layout:
 ```text
 outputs/<run-name>/
 ├── checkpoints/
+├── checkpoints_hf/
 ├── logs/
 │   └── wandb/
 └── results/
 ```
+
+When training finishes, `checkpoints_hf/` holds a clean Hugging Face model
+(`config.json` + `model.safetensors`) exported from the final checkpoint. It
+contains no tokenizer and no custom modeling code; read it back with
+`load_checkpoint("<run-dir>/checkpoints_hf", tokenizer_path=...)`. The export
+needs the `hf` extra (`uv sync --extra gpu --extra hf`); if Transformers is
+missing it is skipped with a log message and the `.ckpt` files are unaffected.
 
 Data and tokenizer assets are not included in the repository. Pass their
 locations through the configuration or command line. Supported pretraining
@@ -201,10 +209,10 @@ Transformers weights and tokenizer automatically. For example:
 
 ```python
 import torch
-from esm.modeling_esm import load_checkpoint
+from ebfm.modeling_ebfm import load_checkpoint
 
 model, tokenizer, hparams, device = load_checkpoint(
-    "guan-wang/ESM-FineWeb-1B", device="cuda"
+    "guan-wang/EBFM-FineWeb-1B", device="cuda"
 )
 tokens = tokenizer.encode("hello", append=tokenizer.get_bos_token_id())
 input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
@@ -221,17 +229,15 @@ Lightning checkpoints produced by this training code.
 ## Repository layout
 
 ```text
-openesm/
-├── assets/                                  # Repository branding assets
-│   └── openesm-github-title.png             # README title banner
+ebfm/
 ├── configs/                                 # Default run configurations
 │   ├── eval.yaml                 # Evaluation defaults
 │   └── train.yaml                # Pretraining defaults
-├── esm/                                     # Model, data, and training library
+├── ebfm/                                    # Model, data, and training library
 │   ├── __init__.py                           # Package initialization
 │   ├── common.py                             # Shared constants and utilities
 │   ├── config.py                             # Training and evaluation config parsing
-│   ├── configuration_esm.py                  # Transformers model configuration
+│   ├── configuration_ebfm.py                  # Transformers model configuration
 │   ├── core_eval.py                          # Core benchmark evaluation
 │   ├── dataloader.py                         # Streaming data loaders
 │   ├── dataset.py                             # Shared dataset utilities
@@ -239,24 +245,25 @@ openesm/
 │   ├── disk_aware_checkpoint.py              # Checkpoint save/load utilities
 │   ├── logger.py                              # Training metric and artifact logging
 │   ├── metrics.py                             # Loss and BPB metrics
-│   ├── modeling_esm.py                        # ESM architecture, loading, and inference
+│   ├── modeling_ebfm.py                        # EBFM architecture, loading, and inference
 │   ├── optim.py                               # Muon and AdamW optimizers and schedules
 │   ├── pretrain_dataset.py                    # Pretraining data pipeline
-│   ├── tokenizer.py                           # ESM tokenizer and tokenizer loading
+│   ├── tokenizer.py                           # EBFM tokenizer and tokenizer loading
 │   └── trainer.py                             # Lightning training and evaluation module
 ├── figs/                                    # README figures and demo images
-│   ├── chat.jpg                               # Web chat interface screenshot
-│   ├── dclm_best_val_bpb_vs_depth.png          # DCLM parameter scaling plot
-│   ├── qa_acc_vs_model_size.png                # Zero-shot accuracy by model size
-│   ├── scaling_pretrain_dclm_validation_bpb.png # DCLM validation BPB by tokens
-│   └── zero_shot_acc_vs_training_tokens.png    # Zero-shot accuracy by tokens
+│   ├── OpenEBFM_logo.png                        # Project logo / title banner
+│   ├── acc_size.png                             # Zero-shot accuracy by model size
+│   ├── acc_tokens.png                           # Zero-shot accuracy by tokens
+│   ├── chat.jpg                                 # Web chat interface screenshot
+│   ├── dclm_pretrain.png                        # DCLM validation BPB by tokens
+│   └── pretrain_size.png                        # DCLM parameter scaling plot
 ├── runs/                                    # Shell entry points for common workflows
 │   ├── chat.sh                   # Launch interactive chat
 │   ├── eval.sh                   # Run validation evaluation
 │   ├── prepare_data.sh           # Prepare and tokenize datasets
 │   ├── qa.sh                     # Run task-based QA evaluation
 │   ├── sft.sh                    # Fine-tune from a checkpoint
-│   ├── train.sh                  # Pretrain an ESM model
+│   ├── train.sh                  # Pretrain an EBFM model
 │   └── zeroshot.sh               # Run zero-shot benchmarks
 ├── scripts/                                 # Python command-line entry points
 │   ├── chat.py                   # Serve terminal or web chat
@@ -280,7 +287,7 @@ openesm/
 │   ├── test_dataloader_lightweight_state.py # Check lightweight loader state
 │   ├── test_dataset_sft_mask.py            # Check SFT loss masking
 │   ├── test_hf_configuration.py            # Check Transformers configuration
-│   └── test_modeling_esm_rope.py           # Check rotary embeddings
+│   └── test_modeling_ebfm_rope.py           # Check rotary embeddings
 ├── .gitignore                                # Excludes local data, outputs, and caches
 ├── pyproject.toml                            # Package metadata and dependency groups
 ├── README.md                                 # English project guide

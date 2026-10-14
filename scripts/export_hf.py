@@ -1,4 +1,4 @@
-"""Export a Lightning ESM checkpoint as a Transformers model repository."""
+"""Export a Lightning EBFM checkpoint as a Transformers model repository."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import shutil
 from pathlib import Path
 
-from esm.modeling_esm import ESMForMaskedLM, ESMTokenizer
+from ebfm.modeling_ebfm import EBFMForMaskedLM, EBFMTokenizer
 
 
 def parse_args():
@@ -18,14 +18,14 @@ def parse_args():
     parser.add_argument(
         "--modeling-file",
         type=Path,
-        default=Path(__file__).resolve().parents[1] / "esm" / "modeling_esm.py",
+        default=Path(__file__).resolve().parents[1] / "ebfm" / "modeling_ebfm.py",
     )
     parser.add_argument(
         "--configuration-file",
         type=Path,
         default=Path(__file__).resolve().parents[1]
-        / "esm"
-        / "configuration_esm.py",
+        / "ebfm"
+        / "configuration_ebfm.py",
     )
     return parser.parse_args()
 
@@ -47,11 +47,11 @@ def main():
             raise FileNotFoundError(path)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    model, _ = ESMForMaskedLM.from_legacy_checkpoint(
+    model, _ = EBFMForMaskedLM.from_legacy_checkpoint(
         checkpoint, tokenizer_path=tokenizer_dir
     )
     model.save_pretrained(output_dir, safe_serialization=True)
-    tokenizer = ESMTokenizer(tokenizer_file=str(tokenizer_dir / "tokenizer.pkl"))
+    tokenizer = EBFMTokenizer(tokenizer_file=str(tokenizer_dir / "tokenizer.pkl"))
     tokenizer.save_pretrained(output_dir)
     tokenizer_config_path = output_dir / "tokenizer_config.json"
     tokenizer_config = {}
@@ -59,8 +59,8 @@ def main():
         tokenizer_config = json.loads(tokenizer_config_path.read_text())
     tokenizer_config.update(
         {
-            "tokenizer_class": "ESMTokenizer",
-            "auto_map": {"AutoTokenizer": ["modeling_esm.ESMTokenizer", None]},
+            "tokenizer_class": "EBFMTokenizer",
+            "auto_map": {"AutoTokenizer": ["modeling_ebfm.EBFMTokenizer", None]},
         }
     )
     tokenizer_config.pop("tokenizer_file", None)
@@ -68,9 +68,9 @@ def main():
         json.dumps(tokenizer_config, indent=2, sort_keys=True) + "\n"
     )
 
-    for filename in ("modeling_esm.py", "configuration_esm.py"):
+    for filename in ("modeling_ebfm.py", "configuration_ebfm.py"):
         source = (
-            args.modeling_file if filename == "modeling_esm.py" else args.configuration_file
+            args.modeling_file if filename == "modeling_ebfm.py" else args.configuration_file
         ).expanduser().resolve()
         shutil.copy2(source, output_dir / filename)
 

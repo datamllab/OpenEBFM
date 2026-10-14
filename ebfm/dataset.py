@@ -7,8 +7,8 @@ import requests
 from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset as _IterableDataset
 
-from esm.config import REPO_ROOT
-from esm.dataloader import StatefulBestFitDataLoader
+from ebfm.config import REPO_ROOT
+from ebfm.dataloader import StatefulBestFitDataLoader
 
 
 class IterableDataset(_IterableDataset):
@@ -204,7 +204,7 @@ def download_fineweb(num_shards=FINEWEB_DEFAULT_SHARDS, num_workers=4, data_dir=
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Download FineWeb-Edu 100BT parquet shards for ESM training"
+        description="Download FineWeb-Edu 100BT parquet shards for EBFM training"
     )
     parser.add_argument(
         "-n",

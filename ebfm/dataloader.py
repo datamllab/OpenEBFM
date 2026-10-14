@@ -19,8 +19,8 @@ the upstream dataloader implementation.
 import torch
 import pyarrow.parquet as pq
 
-from esm.common import get_dist_info
-from esm.pretrain_dataset import (
+from ebfm.common import get_dist_info
+from ebfm.pretrain_dataset import (
     get_dataset_dir,
     get_owt_split_ranges,
     list_parquet_files,
@@ -182,7 +182,7 @@ class StatefulBestFitDataLoader:
             )
         else:
             raise ValueError(
-                "Unsupported ESM dataloader state: expected "
+                "Unsupported EBFM dataloader state: expected "
                 f"state_version={EXACT_RESUME_STATE_VERSION!r}."
             )
 

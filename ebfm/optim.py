@@ -1,4 +1,4 @@
-"""The Muon+AdamW optimizer and linear warmdown schedule used by ESM.
+"""The Muon+AdamW optimizer and linear warmdown schedule used by EBFM.
 
 The trainer uses Lightning/DDP for distributed gradient synchronization, so the
 optimizer itself only needs the single-process MuonAdamW implementation.
@@ -264,7 +264,7 @@ class WarmUpLinearWarmdownLR(_LRScheduler):
     Warmup increases the rate to ``peak_lr``, and warmdown decreases it to
     ``final_lr_frac * peak_lr``.
 
-    The default ESM recipe uses no warmup, a 50% warmdown phase, and a final
+    The default EBFM recipe uses no warmup, a 50% warmdown phase, and a final
     learning-rate fraction of zero.
     """
 

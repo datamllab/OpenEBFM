@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive terminal for ESM checkpoints.
+"""Interactive terminal for EBFM checkpoints.
 
 Examples:
     python -m scripts.chat
@@ -20,8 +20,8 @@ import torch
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
-from esm.config import bootstrap_assets
-from esm.modeling_esm import call_model_forward_decode, sample_top_p
+from ebfm.config import bootstrap_assets
+from ebfm.modeling_ebfm import call_model_forward_decode, sample_top_p
 
 
 for var in ["RANK", "LOCAL_RANK", "WORLD_SIZE", "MASTER_ADDR", "MASTER_PORT"]:
@@ -29,7 +29,7 @@ for var in ["RANK", "LOCAL_RANK", "WORLD_SIZE", "MASTER_ADDR", "MASTER_PORT"]:
         del os.environ[var]
 
 
-os.environ["ESM_OFFLINE_MODE"] = "1"
+os.environ["EBFM_OFFLINE_MODE"] = "1"
 
 
 def _bootstrap_assets() -> None:
@@ -75,15 +75,15 @@ def print_banner():
 ║      ███████╗██████╔╝ ██║ ╚═╝ ██║    ╚██████╗ ██║  ██║██║  ██║   ██║      ║
 ║      ╚══════╝╚═════╝  ╚═╝     ╚═╝     ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝      ║
 ║                                                                              ║
-║                         ESM Chat Terminal                                   ║
+║                         EBFM Chat Terminal                                   ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
     print_colored(banner, Colors.CYAN)
 
 
-class ESMChatEngine:
-    """Interactive generation engine for an ESM checkpoint."""
+class EBFMChatEngine:
+    """Interactive generation engine for an EBFM checkpoint."""
 
     def __init__(
         self,
@@ -114,7 +114,7 @@ class ESMChatEngine:
         """Load the model and tokenizer."""
         print_colored("Loading model...", Colors.YELLOW)
 
-        from esm.modeling_esm import load_checkpoint
+        from ebfm.modeling_ebfm import load_checkpoint
 
         wrapper, tokenizer, hparams, resolved_device = load_checkpoint(
             checkpoint_path,
@@ -399,7 +399,7 @@ def print_help():
 
 
 def print_status(
-    engine: ESMChatEngine, temperature: float, top_p: float, max_tokens: int
+    engine: EBFMChatEngine, temperature: float, top_p: float, max_tokens: int
 ):
     """Print the current generation settings."""
     print()
@@ -429,7 +429,7 @@ def print_generation_stats(stats: Dict[str, Any]):
 
 def _handle_web_command(
     command: str,
-    engine: ESMChatEngine,
+    engine: EBFMChatEngine,
     runtime: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Apply a terminal-style command and return a JSON-safe response."""
@@ -528,7 +528,7 @@ def _handle_web_command(
 
 
 def run_web(
-    engine: ESMChatEngine,
+    engine: EBFMChatEngine,
     host: str,
     port: int,
     temperature: float,
@@ -562,7 +562,7 @@ def run_web(
     class CommandRequest(BaseModel):
         command: str
 
-    app = FastAPI(title="ESM Chat")
+    app = FastAPI(title="EBFM Chat")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -581,7 +581,7 @@ def run_web(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ESM Chat</title>
+    <title>EBFM Chat</title>
     <style>
         :root { color-scheme: light; }
         * { box-sizing: border-box; }
@@ -627,7 +627,7 @@ def run_web(
         <button class="new-btn" onclick="newConversation()" title="New Conversation (Ctrl+Shift+N)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
         </button>
-        <h1>ESM Chat</h1><span class="header-tag">Energy-Steered Model</span>
+        <h1>EBFM Chat</h1><span class="header-tag">Energy-Steered Model</span>
     </div></div>
     <div class="chat-container" id="chatContainer"><div class="chat-wrapper" id="chatWrapper"></div></div>
     <div class="input-container"><div class="input-wrapper">
@@ -753,9 +753,9 @@ async function sendMessage() {
 
 sendButton.disabled = false; chatInput.focus();
 fetch(API_URL + '/health').then(r => r.json()).then(d => {
-    console.log('ESM Engine status:', d);
+    console.log('EBFM Engine status:', d);
 }).catch(() => {
-    chatWrapper.innerHTML = '<div class="error-message">The ESM engine is not ready. Wait for the model to load, then refresh the page.</div>';
+    chatWrapper.innerHTML = '<div class="error-message">The EBFM engine is not ready. Wait for the model to load, then refresh the page.</div>';
 });
 </script>
 </body>
@@ -820,7 +820,7 @@ fetch(API_URL + '/health').then(r => r.json()).then(d => {
                     except Exception as exc:
                         import logging
 
-                        logging.getLogger(__name__).exception("ESM generation failed")
+                        logging.getLogger(__name__).exception("EBFM generation failed")
                         token_queue.put({"error": str(exc)})
                     finally:
                         token_queue.put(None)
@@ -846,9 +846,9 @@ fetch(API_URL + '/health').then(r => r.json()).then(d => {
 
 def main():
     _bootstrap_assets()
-    parser = argparse.ArgumentParser(description="ESM interactive chat")
+    parser = argparse.ArgumentParser(description="EBFM interactive chat")
     parser.add_argument(
-        "-c", "--checkpoint", type=str, default="", help="Path to the ESM checkpoint"
+        "-c", "--checkpoint", type=str, default="", help="Path to the EBFM checkpoint"
     )
     parser.add_argument(
         "--tokenizer-path",
@@ -895,7 +895,7 @@ def main():
     torch.set_float32_matmul_precision("medium")
 
     try:
-        engine = ESMChatEngine(
+        engine = EBFMChatEngine(
             checkpoint_path=args.checkpoint,
             tokenizer_path=args.tokenizer_path,
             device=args.device,
@@ -928,7 +928,7 @@ def main():
         return 0
 
     print("=" * 70)
-    print_colored("ESM chat is ready!", Colors.GREEN)
+    print_colored("EBFM chat is ready!", Colors.GREEN)
     print("=" * 70)
     print("Instructions:")
     print("  - Enter text and press Enter to generate")
@@ -1038,7 +1038,7 @@ def main():
             if not user_input.strip():
                 continue
 
-            print(f"{Colors.GREEN}ESM:{Colors.RESET} ", end="", flush=True)
+            print(f"{Colors.GREEN}EBFM:{Colors.RESET} ", end="", flush=True)
 
             try:
                 conversation.append({"role": "user", "content": user_input})

@@ -2,7 +2,7 @@ import ast
 from pathlib import Path
 
 
-DATALOADER_PATH = Path(__file__).resolve().parents[1] / "esm" / "dataloader.py"
+DATALOADER_PATH = Path(__file__).resolve().parents[1] / "ebfm" / "dataloader.py"
 
 
 def _class_method(tree, class_name, method_name):

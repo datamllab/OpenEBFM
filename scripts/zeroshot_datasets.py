@@ -9,7 +9,7 @@ import re
 import numpy as np
 
 
-DATA_ROOT_DEFAULT = os.environ.get("ESM_ZERO_SHOT_DATA_ROOT", "data/zeroshot")
+DATA_ROOT_DEFAULT = os.environ.get("EBFM_ZERO_SHOT_DATA_ROOT", "data/zeroshot")
 LM1B_HELDOUT = [
     f"LM1B/heldout-monolingual.tokenized.shuffled/news.en.heldout-{i:05d}-of-00050"
     for i in range(50)

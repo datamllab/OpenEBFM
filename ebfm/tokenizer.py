@@ -1,4 +1,4 @@
-"""ESM's RustBPE training and tiktoken inference tokenizer."""
+"""EBFM's RustBPE training and tiktoken inference tokenizer."""
 
 import os
 import copy
@@ -7,7 +7,7 @@ from functools import lru_cache
 
 import rustbpe
 import tiktoken
-from esm.common import get_base_dir
+from ebfm.common import get_base_dir
 
 SPECIAL_TOKENS = [
     "<|bos|>",
@@ -270,7 +270,7 @@ class RustBPETokenizer:
         return ids
 
 
-HF_TOKENIZER_REPO = "guan-wang/ESM-ClimbMix-160M"
+HF_TOKENIZER_REPO = "guan-wang/EBFM-ClimbMix-160M"
 
 
 def ensure_tokenizer_assets(tokenizer_dir, filenames):
@@ -300,7 +300,7 @@ def ensure_tokenizer_assets(tokenizer_dir, filenames):
 
 def get_tokenizer(tokenizer_dir=None):
     if tokenizer_dir is None:
-        from esm.common import get_base_dir
+        from ebfm.common import get_base_dir
 
         tokenizer_dir = os.path.join(get_base_dir(), "tokenizer")
     ensure_tokenizer_assets(tokenizer_dir, ("tokenizer.pkl",))
@@ -311,7 +311,7 @@ def get_token_bytes(device="cpu", tokenizer_dir=None):
     import torch
 
     if tokenizer_dir is None:
-        from esm.common import get_base_dir
+        from ebfm.common import get_base_dir
 
         tokenizer_dir = os.path.join(get_base_dir(), "tokenizer")
     ensure_tokenizer_assets(tokenizer_dir, ("token_bytes.pt",))
@@ -321,10 +321,10 @@ def get_token_bytes(device="cpu", tokenizer_dir=None):
     return token_bytes
 
 
-class ESMTokenizerWrapper:
+class EBFMTokenizerWrapper:
     """
-    Wrapper around the ESM BPE tokenizer to provide a HuggingFace-compatible interface.
-    This allows it to be used as a drop-in replacement in ESM code.
+    Wrapper around the EBFM BPE tokenizer to provide a HuggingFace-compatible interface.
+    This allows it to be used as a drop-in replacement in EBFM code.
     """
 
     def __init__(self, tokenizer_obj=None, tokenizer_dir=None):
@@ -347,8 +347,8 @@ class ESMTokenizerWrapper:
         self.pad_token_id = self.eos_token_id
         self.unk_token_id = 0
 
-        print(f"[ESMTokenizerWrapper] Vocab size: {self.tokenizer.get_vocab_size()}")
-        print(f"[ESMTokenizerWrapper] EOS/BOS/PAD token ID: {self.eos_token_id}")
+        print(f"[EBFMTokenizerWrapper] Vocab size: {self.tokenizer.get_vocab_size()}")
+        print(f"[EBFMTokenizerWrapper] EOS/BOS/PAD token ID: {self.eos_token_id}")
 
     def __len__(self):
         """Return vocab size"""
@@ -508,14 +508,14 @@ class ESMTokenizerWrapper:
         return result
 
 
-def get_esm_tokenizer():
+def get_ebfm_tokenizer():
     """
-    Convenience function to get the esm tokenizer with HuggingFace-compatible interface.
+    Convenience function to get the ebfm tokenizer with HuggingFace-compatible interface.
 
     Returns:
-        ESMTokenizerWrapper instance
+        EBFMTokenizerWrapper instance
     """
-    return ESMTokenizerWrapper()
+    return EBFMTokenizerWrapper()
 
 
 __all__ = [
@@ -524,6 +524,6 @@ __all__ = [
     "RustBPETokenizer",
     "get_tokenizer",
     "get_token_bytes",
-    "ESMTokenizerWrapper",
-    "get_esm_tokenizer",
+    "EBFMTokenizerWrapper",
+    "get_ebfm_tokenizer",
 ]

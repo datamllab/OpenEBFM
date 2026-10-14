@@ -67,12 +67,12 @@ def _expand_environment(value: Any) -> Any:
 
 
 def bootstrap_assets(kind: str, fallback: str | Path | None = None) -> dict[str, Any]:
-    """Set the default ESM asset root before importing data/model modules."""
+    """Set the default EBFM asset root before importing data/model modules."""
 
     values = load_yaml(default_config_path(kind))
-    asset_root = values.get("esm_asset_root") or fallback
+    asset_root = values.get("ebfm_asset_root") or fallback
     if asset_root:
-        os.environ.setdefault("ESM_BASE_DIR", str(asset_root))
+        os.environ.setdefault("EBFM_BASE_DIR", str(asset_root))
     return values
 
 
@@ -382,9 +382,9 @@ def _apply_derived_values(
 
     args.max_steps = max_steps
 
-    asset_root = values.get("esm_asset_root")
-    if asset_root and "ESM_BASE_DIR" not in os.environ:
-        os.environ["ESM_BASE_DIR"] = str(asset_root)
+    asset_root = values.get("ebfm_asset_root")
+    if asset_root and "EBFM_BASE_DIR" not in os.environ:
+        os.environ["EBFM_BASE_DIR"] = str(asset_root)
 
     compile_flags = values.get("compile_flags")
     if (
