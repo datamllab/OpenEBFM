@@ -1590,9 +1590,9 @@ def _normalize_checkpoint_hparams(hparams, tokenizer):
     if hparams.get("time_embedding") is None:
         hparams["time_embedding"] = True
     if not hparams.get("ebfm_norm"):
-        hparams["ebfm_norm"] = hparams.get("ebt_norm") or "rms"
+        hparams["ebfm_norm"] = "rms"
     if not hparams.get("ebfm_act_func"):
-        hparams["ebfm_act_func"] = hparams.get("ebt_act_func") or "silu"
+        hparams["ebfm_act_func"] = "silu"
     if not hparams.get("vocab_size"):
         hparams["vocab_size"] = tokenizer.get_vocab_size()
     hparams.setdefault("float_precision", "32-true")
@@ -1613,8 +1613,6 @@ def _normalize_legacy_state_dict(state_dict):
         key = key.replace("._orig_mod.", ".")
         if key.startswith("_orig_mod."):
             key = key[len("_orig_mod.") :]
-        if key == "langevin_dynamics_noise_std":
-            continue
         normalized[key] = value
 
     eager_prefix = "transformer_eager."

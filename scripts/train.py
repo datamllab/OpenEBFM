@@ -989,14 +989,12 @@ if __name__ == "__main__":
         "--base_train_dataset",
         help="local base pretraining corpus used by the ebfm parquet dataloader",
         choices=["fineweb", "climbmix", "dclm", "owt"],
-        default=os.environ.get(
-            "BASE_TRAIN_DATASET", os.environ.get("EBFM_BASE_TRAIN_DATASET", "dclm")
-        ),
+        default=os.environ.get("EBFM_BASE_TRAIN_DATASET", "dclm"),
     )
     parser.add_argument(
         "--base_train_data_dir",
         help="optional override for the local parquet directory of --base_train_dataset",
-        default=os.environ.get("BASE_TRAIN_DATA_DIR", ""),
+        default=os.environ.get("EBFM_BASE_TRAIN_DATA_DIR", ""),
     )
 
     parser.add_argument("--dataset_dir", help="dataset base directory", default="")

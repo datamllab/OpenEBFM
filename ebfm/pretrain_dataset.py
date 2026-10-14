@@ -22,7 +22,6 @@ def normalize_base_train_dataset(dataset_name=None):
     """Return a validated base pretraining dataset name."""
     dataset_name = (
         dataset_name
-        or os.environ.get("BASE_TRAIN_DATASET")
         or os.environ.get("EBFM_BASE_TRAIN_DATASET")
         or DEFAULT_BASE_TRAIN_DATASET
     )

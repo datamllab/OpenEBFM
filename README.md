@@ -305,3 +305,9 @@ python -m scripts.eval --help
 python -m scripts.qa --help
 python -m scripts.chat --help
 ```
+
+## Acknowledgement
+
+Acknowledgement to [Nanochat](https://github.com/karpathy/nanochat) and
+[EBT](https://github.com/alexiglad/EBT) for their open-source contributions to
+GPT and energy-based Transformers.
