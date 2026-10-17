@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.alphaxiv.org/abs/2610.openesm"><img src="https://img.shields.io/badge/arXiv-2610.openesm-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"/></a>
   <a href="https://github.com/datamllab/openebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
   <a href="https://huggingface.co/collections/guan-wang/ebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face"/></a>
 </p>
