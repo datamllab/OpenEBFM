@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://www.alphaxiv.org/abs/2610.openesm"><img src="https://img.shields.io/badge/arXiv-2610.openesm-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"/></a>
   <a href="https://github.com/datamllab/openebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
-  <a href="https://huggingface.co/collections/guan-wang/ebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace"/></a>
+  <a href="https://huggingface.co/collections/guan-wang/openebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace"/></a>
 </p>
 
 <p align="center">
@@ -88,7 +88,7 @@ Use `configs/train.yaml` as the default configuration and set
 ## ⚙️ Pretrained Checkpoints
 
 Pretrained models are published in the
-[EBFM Hugging Face collection](https://huggingface.co/collections/guan-wang/ebfm).
+[EBFM Hugging Face collection](https://huggingface.co/collections/guan-wang/openebfm).
 The collection includes 160M, 520M, and 1B models trained on DCLM, FineWeb, and
 ClimbMix; one 160M OWT model; and a FineWeb SFT model named
 `EBFM-FineWeb-1B-CHAT`.

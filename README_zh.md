@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://www.alphaxiv.org/abs/2610.openesm"><img src="https://img.shields.io/badge/arXiv-2610.openesm-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"/></a>
   <a href="https://github.com/datamllab/openebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
-  <a href="https://huggingface.co/collections/guan-wang/ebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face"/></a>
+  <a href="https://huggingface.co/collections/guan-wang/openebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face"/></a>
 </p>
 
 <p align="center">
@@ -70,7 +70,7 @@ DCLM 和 FineWeb 上，零样本准确率随模型规模提升，也会随训练
 ## ⚙️ 预训练 Checkpoint
 
 预训练模型发布在
-[EBFM Hugging Face collection](https://huggingface.co/collections/guan-wang/ebfm)
+[EBFM Hugging Face collection](https://huggingface.co/collections/guan-wang/openebfm)
 中。Collection 包含基于 DCLM、FineWeb 和 ClimbMix 训练的 160M、520M 和 1B
 参数规模模型；一个 160M OWT 模型；以及一个名为 `EBFM-FineWeb-1B-CHAT` 的
 FineWeb SFT 模型。
