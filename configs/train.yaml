@@ -14,7 +14,7 @@ ebfm_asset_root: "${EBFM_ASSET_ROOT:-.cache}"
 
 node_count: 1
 gpus: -1
-cuda_visible_devices: "1,2,3,4"
+cuda_visible_devices: "2,3"
 device_batch_size: 2
 global_batch_size: 8
 context_length: 2048

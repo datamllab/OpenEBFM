@@ -9,7 +9,7 @@ data_root: "${EBFM_DATA_ROOT:-data}"
 ebfm_asset_root: "${EBFM_ASSET_ROOT:-.cache}"
 node_count: 1
 gpus: -1
-cuda_visible_devices: "1,2,3,4"
+cuda_visible_devices: "1,2"
 context_length: 2048
 device_batch_size: 1
 task: "position_bpb"

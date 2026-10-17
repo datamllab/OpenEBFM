@@ -1,5 +1,6 @@
 """Functions for evaluating CORE tasks using an EBFM checkpoint."""
 
+import os
 import random
 
 from jinja2 import Template
@@ -157,6 +158,40 @@ def forward_model(model, input_ids):
     return losses, predictions
 
 
+def mc_per_choice_enabled():
+    """Whether each multiple-choice continuation is scored in its own forward pass."""
+
+    return os.environ.get("EBFM_EVAL_MC_PER_CHOICE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def choice_mean_losses(model, tokenizer, tokens, start_idxs, end_idxs, device):
+    """Mean loss over each continuation's answer span (one forward per choice if enabled)."""
+
+    pad_token_id = tokenizer.get_bos_token_id()
+    if mc_per_choice_enabled():
+        # Match the batched padding exactly so the numbers are unchanged.
+        max_len = max(len(x) for x in tokens)
+        means = []
+        for one, si, ei in zip(tokens, start_idxs, end_idxs):
+            padded = list(one) + [pad_token_id] * (max_len - len(one))
+            input_ids = stack_sequences([padded], pad_token_id).to(device)
+            losses, _ = forward_model(model, input_ids)
+            means.append(losses[0, si - 1 : ei - 1].mean().item())
+        return means
+
+    input_ids = stack_sequences(tokens, pad_token_id).to(device)
+    losses, _ = forward_model(model, input_ids)
+    return [
+        losses[i, si - 1 : ei - 1].mean().item()
+        for i, (si, ei) in enumerate(zip(start_idxs, end_idxs))
+    ]
+
+
 @torch.no_grad()
 def evaluate_example(idx, model, tokenizer, data, device, task_meta):
     """Evaluate a single example, return True if correct, False otherwise"""
@@ -201,30 +236,21 @@ def evaluate_example(idx, model, tokenizer, data, device, task_meta):
                 new_end_idxs.append(e)
         tokens, start_idxs, end_idxs = new_tokens, new_start_idxs, new_end_idxs
 
-    pad_token_id = tokenizer.get_bos_token_id()
-    input_ids = stack_sequences(tokens, pad_token_id)
-    input_ids = input_ids.to(device)
-
-    losses, predictions = forward_model(model, input_ids)
-
-    if task_type == "language_modeling":
-        si = start_idxs[0]
-        ei = end_idxs[0]
-
-        predicted_tokens = predictions[0, si - 1 : ei - 1]
-        actual_tokens = input_ids[0, si:ei]
-        is_correct = torch.all(predicted_tokens == actual_tokens).item()
-    elif task_type in ["multiple_choice", "schema"]:
-        mean_losses = [
-            losses[i, si - 1 : ei - 1].mean().item()
-            for i, (si, ei) in enumerate(zip(start_idxs, end_idxs))
-        ]
+    if task_type in ["multiple_choice", "schema"]:
+        mean_losses = choice_mean_losses(
+            model, tokenizer, tokens, start_idxs, end_idxs, device
+        )
         pred_idx = mean_losses.index(min(mean_losses))
-        is_correct = pred_idx == item["gold"]
-    else:
-        raise ValueError(f"Unsupported task type: {task_type}")
+        return pred_idx == item["gold"]
 
-    return is_correct
+    pad_token_id = tokenizer.get_bos_token_id()
+    input_ids = stack_sequences(tokens, pad_token_id).to(device)
+    _, predictions = forward_model(model, input_ids)
+    si = start_idxs[0]
+    ei = end_idxs[0]
+    predicted_tokens = predictions[0, si - 1 : ei - 1]
+    actual_tokens = input_ids[0, si:ei]
+    return torch.all(predicted_tokens == actual_tokens).item()
 
 
 def evaluate_task(model, tokenizer, data, device, task_meta):

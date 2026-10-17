@@ -622,22 +622,9 @@ class Attention(nn.Module):
                     device=scores_p.device,
                 )
 
-            zero_superdiag = torch.zeros_like(
-                insertion_superdiagonal, dtype=scores_p.dtype, device=scores_p.device
-            )
-            diagonal_removal_mask = torch.ones_like(
-                scores_p, dtype=scores_p.dtype, device=scores_p.device
-            )
-            diagonal_removal_mask[:, :, superdiag_rows, superdiag_cols] = zero_superdiag
-            scores_p = scores_p * diagonal_removal_mask
-
-            diagonal_addition_mask = torch.zeros_like(
-                scores_p, dtype=scores_p.dtype, device=scores_p.device
-            )
-            diagonal_addition_mask[:, :, superdiag_rows, superdiag_cols] = (
-                insertion_superdiagonal
-            )
-            scores_p = scores_p + diagonal_addition_mask
+            # Replace the superdiagonal with the direct q·k product; in place avoids
+            # two extra [B, H, T, T] masks per layer (numerically identical).
+            scores_p[:, :, superdiag_rows, superdiag_cols] = insertion_superdiagonal
 
             if mask is not None:
                 p_mask = mask[self.time_offset :, :]
@@ -652,7 +639,10 @@ class Attention(nn.Module):
                 offset=self.time_offset, dim1=2, dim2=3
             )
 
-            scores_p = scores_p * diagonal_removal_mask
+            # Drop the superdiagonal tap (re-added below as next_pred_self_attention);
+            # the clone keeps this autograd-safe while avoiding a full [B, H, T, T] mask.
+            scores_p = scores_p.clone()
+            scores_p[:, :, superdiag_rows, superdiag_cols] = 0
 
             scores_p = scores_p[:, :, :, :-1]
             output_p = torch.matmul(scores_p, values_o)

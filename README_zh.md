@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/datamllab/ebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
+  <a href="https://github.com/datamllab/openebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
   <a href="https://huggingface.co/collections/guan-wang/ebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face"/></a>
 </p>
 
@@ -133,7 +133,7 @@ MODEL_DIR="$(python -c 'from huggingface_hub import snapshot_download; print(sna
 bash runs/eval.sh \
   --checkpoint guan-wang/EBFM-DCLM-1B \
   --dataset dclm \
-  --data-dir /path/to/data \
+  --data-dir data/dclm \
   --tokenizer-path "${MODEL_DIR}" \
   --output_root . \
   --run_name eval-dclm
@@ -142,7 +142,7 @@ bash runs/eval.sh \
 bash runs/qa.sh \
   --checkpoint guan-wang/EBFM-DCLM-1B \
   --tokenizer-path "${MODEL_DIR}" \
-  --eval-bundle /path/to/eval_bundle \
+  --eval-bundle data/eval_bundle \
   --output_root . \
   --run_name qa-dclm
 
@@ -151,8 +151,7 @@ bash runs/chat.sh --checkpoint guan-wang/EBFM-FineWeb-1B-CHAT
 ```
 
 Chat、验证集评估、QA 评估和 SFT 初始化均可直接使用 Hugging Face 模型 ID。BPB
-评估还需传入本地下载目录以读取 `token_bytes.pt`。Zero-shot 评估目前仍要求本地
-Lightning checkpoint。
+评估还需传入本地下载目录以读取 `token_bytes.pt`。
 
 训练读取 `configs/train.yaml`，评估读取 `configs/eval.yaml`。显式命令行参数
 优先于 YAML 配置。训练长度由 `TARGET_TOTAL_TOKENS` 控制。有效的梯度累积
@@ -241,8 +240,7 @@ ebfm/
 │   ├── prepare_data.sh           # 准备并分词数据集
 │   ├── qa.sh                     # 执行问答任务评估
 │   ├── sft.sh                    # 从 checkpoint 进行微调
-│   ├── train.sh                  # 预训练 EBFM 模型
-│   └── zeroshot.sh               # 执行零样本基准测试
+│   └── train.sh                  # 预训练 EBFM 模型
 ├── scripts/                                 # Python 命令行入口
 │   ├── chat.py                   # 提供终端或网页聊天服务
 │   ├── eval.py                   # 评估验证损失和 BPB
@@ -250,9 +248,7 @@ ebfm/
 │   ├── prepare_data.py           # 构建训练和评估数据
 │   ├── qa.py                     # 评估问答任务集合
 │   ├── sft.py                    # 执行监督微调
-│   ├── train.py                  # 执行预训练
-│   ├── zeroshot.py               # 执行零样本基准评估
-│   └── zeroshot_datasets.py      # 定义零样本基准数据集
+│   └── train.py                  # 执行预训练
 ├── tasks/                                   # 评估用数据集和任务适配器
 │   ├── common.py                             # 共享任务接口和工具
 │   ├── customjson.py                         # 加载自定义 JSON 评估任务
@@ -282,6 +278,19 @@ python -m scripts.train --help
 python -m scripts.eval --help
 python -m scripts.qa --help
 python -m scripts.chat --help
+```
+
+## Citation
+
+如果本项目对你的工作有帮助，欢迎 star 并引用：
+
+```bibtex
+@misc{pu-openesm-energy-steered-models,
+  author = {Pu, Yuan and Lu, Yudong and Wang, Ting and Hong, Zhicong and Li, Qinuo and Wu, Xuansheng and Zou, Na and Hu, Xia and Wang, Guanchu},
+  keywords = {Computation and Language (cs.CL), Machine Learning (cs.LG), Energy-Based Models, Foundation Models, Language Modeling, Energy Steering, Scaling},
+  title = {OpenESM: Energy-Steered Models Are Scalable Foundation Learners},
+  publisher = {arXiv}
+}
 ```
 
 ## Acknowledgement

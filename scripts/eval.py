@@ -1,6 +1,6 @@
 """Unified EBFM evaluation entry point.
 
-The first-class default is position-wise BPB.  CORE remains available through
+The first-class default is position-wise BPB.  QA evaluation remains available through
 the same entry point with ``--task core`` and uses the same checkpoint loader.
 """
 
@@ -44,7 +44,7 @@ stack_sequences = None
 
 
 def _load_core_runtime() -> None:
-    """Load optional torch/CORE dependencies only when evaluation is run."""
+    """Load optional torch/QA dependencies only when evaluation is run."""
 
     global torch, F, mp, np, yaml, tqdm
     global evaluate_example, _ebfm_evaluate_task, forward_model
@@ -53,7 +53,8 @@ def _load_core_runtime() -> None:
         batch_sequences_mc, \
         batch_sequences_schema, \
         batch_sequences_lm, \
-        stack_sequences
+        stack_sequences, \
+        choice_mean_losses
 
     if torch is not None and forward_model is not None:
         return
@@ -79,6 +80,7 @@ def _load_core_runtime() -> None:
         batch_sequences_schema as _batch_sequences_schema,
         batch_sequences_lm as _batch_sequences_lm,
         stack_sequences as _stack_sequences,
+        choice_mean_losses as _choice_mean_losses,
     )
 
     torch = _torch
@@ -97,6 +99,46 @@ def _load_core_runtime() -> None:
     batch_sequences_schema = _batch_sequences_schema
     batch_sequences_lm = _batch_sequences_lm
     stack_sequences = _stack_sequences
+    choice_mean_losses = _choice_mean_losses
+
+
+def _select_benchmark_tasks(tasks: list[dict]) -> list[dict]:
+    """Restrict the bundle's task list to the QA benchmark set reported by this project."""
+
+    from scripts.prepare_qa_data import BENCHMARKS
+
+    wanted = [label for label, _ in BENCHMARKS]
+    by_label = {task["label"]: task for task in tasks}
+    selected = [by_label[label] for label in wanted if label in by_label]
+
+    absent = [label for label in wanted if label not in by_label]
+    if absent:
+        print(f"  warning: benchmark(s) not present in the bundle: {absent}")
+    skipped = [task["label"] for task in tasks if task["label"] not in set(wanted)]
+    if skipped:
+        print(f"  scope: {len(selected)} QA benchmarks (ignoring {len(skipped)} extra bundle task(s): {skipped})")
+    return selected
+
+
+def _ensure_eval_bundle(eval_bundle_dir: str | None) -> None:
+    """Download the QA evaluation bundle when the requested directory is missing or incomplete."""
+
+    if not eval_bundle_dir:
+        return
+
+    from ebfm.config import REPO_ROOT, resolve_path
+    from scripts.prepare_qa_data import REQUIRED, download, is_complete
+
+    # Resolve like every other path option: relative to the repository root, not the cwd.
+    dest = resolve_path(eval_bundle_dir, repo_root=REPO_ROOT)
+    if is_complete(dest):
+        return
+    missing = [name for name in REQUIRED if not (dest / name).exists()]
+    print(
+        f"[eval-bundle] {dest} is missing {missing or 'the QA evaluation bundle'}; "
+        "downloading it now (scripts/prepare_qa_data.py)"
+    )
+    download(dest)
 
 
 def _no_grad(function):
@@ -160,6 +202,14 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--num-trajectory-samples", type=int, default=10)
     parser.add_argument("--history-timing", default="")
     parser.add_argument("--time_embedding", type=str, default="true")
+    parser.add_argument(
+        "--mc-per-choice",
+        action="store_true",
+        help=(
+            "score each multiple-choice continuation in its own forward pass "
+            "(much lower attention memory, ~Nx slower)"
+        ),
+    )
     return parser
 
 
@@ -238,6 +288,10 @@ def evaluate(args: argparse.Namespace):
     notebooks and higher-level launchers while preserving the CLI below.
     """
     _validate(args)
+
+    # Spawned evaluation workers inherit this through the environment.
+    if getattr(args, "mc_per_choice", False):
+        os.environ["EBFM_EVAL_MC_PER_CHOICE"] = "1"
 
     if args.task == "position_bpb":
         data_dir = _resolve_data_dir(args)
@@ -775,10 +829,6 @@ def evaluate_example_with_trajectory(idx, model, tokenizer, data, device, task_m
         tokens, start_idxs, end_idxs = new_tokens, new_start_idxs, new_end_idxs
 
     pad_token_id = tokenizer.get_bos_token_id()
-    input_ids = stack_sequences(tokens, pad_token_id)
-    input_ids = input_ids.to(device)
-
-    losses, predictions = forward_model(model, input_ids)
 
     trajectory = {
         "sample_id": idx,
@@ -790,6 +840,8 @@ def evaluate_example_with_trajectory(idx, model, tokenizer, data, device, task_m
     }
 
     if task_type == "language_modeling":
+        input_ids = stack_sequences(tokens, pad_token_id).to(device)
+        _, predictions = forward_model(model, input_ids)
         si = start_idxs[0]
         ei = end_idxs[0]
         predicted_tokens = predictions[0, si - 1 : ei - 1]
@@ -811,10 +863,9 @@ def evaluate_example_with_trajectory(idx, model, tokenizer, data, device, task_m
         trajectory["parsed_answer"] = pred_text
 
     elif task_type in ["multiple_choice", "schema"]:
-        mean_losses = [
-            losses[i, si - 1 : ei - 1].mean().item()
-            for i, (si, ei) in enumerate(zip(start_idxs, end_idxs))
-        ]
+        mean_losses = choice_mean_losses(
+            model, tokenizer, tokens, start_idxs, end_idxs, device
+        )
         pred_idx = mean_losses.index(min(mean_losses))
         gold_idx = item["gold"]
         is_correct = pred_idx == gold_idx
@@ -938,7 +989,7 @@ def evaluate_core(
     num_trajectory_samples=10,
 ):
     """
-    Run the complete CORE evaluation.
+    Run the complete QA evaluation.
 
     Args:
         model: Model to evaluate.
@@ -957,7 +1008,7 @@ def evaluate_core(
 
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    tasks = config["icl_tasks"]
+    tasks = _select_benchmark_tasks(config["icl_tasks"])
 
     random_baselines = {}
     with open(eval_meta_data, "r", encoding="utf-8") as f:
@@ -972,7 +1023,7 @@ def evaluate_core(
     timing_records = []
 
     print("\n" + "=" * 80)
-    print("Running CORE Evaluation")
+    print("Running QA Evaluation")
     print("=" * 80 + "\n")
 
     task_pbar = tqdm(tasks, desc="Tasks", position=0, unit="task")
@@ -1255,6 +1306,9 @@ def _eval_worker(
             }
         )
 
+        # Release this task's activations before moving on to the next one.
+        torch.cuda.empty_cache()
+
 
 def evaluate_core_multigpu(
     num_gpus,
@@ -1268,14 +1322,14 @@ def evaluate_core_multigpu(
     num_trajectory_samples=10,
     history_timing_path=None,
 ):
-    """Run CORE evaluation across GPUs using load-balanced task assignment."""
+    """Run QA evaluation across GPUs using load-balanced task assignment."""
     _load_core_runtime()
     config_path = os.path.join(eval_bundle_dir, "core.yaml")
     eval_meta_data = os.path.join(eval_bundle_dir, "eval_meta_data.csv")
 
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    all_tasks = config["icl_tasks"]
+    all_tasks = _select_benchmark_tasks(config["icl_tasks"])
 
     random_baselines = {}
     with open(eval_meta_data, "r", encoding="utf-8") as f:
@@ -1298,7 +1352,7 @@ def evaluate_core_multigpu(
         "greedy load-balanced" if used_greedy else "round-robin (no history timing)"
     )
     print(
-        f"Running CORE Evaluation (multi-GPU: {num_gpus} GPUs, {len(all_tasks)} tasks)"
+        f"Running QA Evaluation (multi-GPU: {num_gpus} GPUs, {len(all_tasks)} QA benchmarks)"
     )
     print(f"Task scheduling: {scheduling_method}")
     print(f"{'=' * 80}")
@@ -1463,7 +1517,7 @@ def _print_eta_table(history_timing_path, tasks):
 
 def evaluate_core_cli(argv=None):
     parser = argparse.ArgumentParser(
-        description="EBFM CORE Evaluation",
+        description="EBFM QA Evaluation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -1512,7 +1566,7 @@ Examples:
         "--max-per-task",
         type=int,
         default=-1,
-        help="Max examples per task globally (-1 = all samples for complete CORE score)",
+        help="Max examples per task globally (-1 = all samples per task)",
     )
     parser.add_argument(
         "--task-samples",
@@ -1553,6 +1607,7 @@ Examples:
     )
     args = parser.parse_args(argv)
     _load_core_runtime()
+    _ensure_eval_bundle(args.eval_bundle_dir)
 
     task_samples_dict = {}
     if args.task_samples:
@@ -1646,15 +1701,15 @@ Examples:
 
     if core_results:
         print("\n" + "=" * 80)
-        print("CORE Evaluation Results")
+        print("QA Evaluation Results")
         print("=" * 80 + "\n")
 
-        print(f"CORE Metric: {core_results['core_metric']:.4f}\n")
+        mean_acc = np.mean(list(core_results["results"].values())) if core_results["results"] else 0.0
+        print(f"Mean accuracy: {mean_acc:.4f}\n")
 
         print("Task Results:")
         for task_name, accuracy in sorted(core_results["results"].items()):
-            centered = core_results["centered_results"][task_name]
-            print(f"  {task_name:40s}: {accuracy:.4f} (centered: {centered:.4f})")
+            print(f"  {task_name:40s}: {accuracy:.4f}")
 
         results_to_save = {
             "results": core_results["results"],
@@ -1669,17 +1724,10 @@ Examples:
         csv_file = os.path.join(args.output_dir, "core_results.csv")
         with open(csv_file, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Task", "Accuracy", "Centered", "CORE"])
+            writer.writerow(["Task", "Accuracy"])
             for task_name in sorted(core_results["results"].keys()):
-                writer.writerow(
-                    [
-                        task_name,
-                        f"{core_results['results'][task_name]:.4f}",
-                        f"{core_results['centered_results'][task_name]:.4f}",
-                        "",
-                    ]
-                )
-            writer.writerow(["OVERALL", "", "", f"{core_results['core_metric']:.4f}"])
+                writer.writerow([task_name, f"{core_results['results'][task_name]:.4f}"])
+            writer.writerow(["MEAN", f"{mean_acc:.4f}"])
         print(f"-> CSV saved to: {csv_file}")
 
         timing_records = core_results.get("timing", [])
@@ -1716,7 +1764,7 @@ Examples:
         num_tasks = len(core_results["results"])
         avg_acc = np.mean(list(core_results["results"].values()))
         print(
-            f"\n[EVAL_SUMMARY] dataset=core core_metric={core_results['core_metric']:.4f} avg_accuracy={avg_acc:.4f} num_tasks={num_tasks} total_time={total_seconds:.1f}s"
+            f"\n[EVAL_SUMMARY] dataset=qa avg_accuracy={avg_acc:.4f} num_tasks={num_tasks} total_time={total_seconds:.1f}s"
         )
 
     print("\n" + "=" * 80)
