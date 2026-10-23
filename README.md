@@ -35,6 +35,7 @@
 
 ## 🎉 Updates
 
+- **2026-10-23** — ✨✨ Technical report released. See [[report]](https://github.com/datamllab/OpenEBFM/blob/main/docs/EBFM-technical-report.pdf).
 - **2026-10-07** — ✨✨ Full codebase released.
 
 
