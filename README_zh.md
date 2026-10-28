@@ -32,7 +32,7 @@ uv sync --extra gpu --extra hf --extra web
 source .venv/bin/activate
 ```
 
-下载并分词训练数据（首次训练前运行一次，需联网）。默认准备 `climbmix`、`dclm`、
+下载并分词训练数据。默认准备 `climbmix`、`dclm`、
 `fineweb` 全部三个，用 `--datasets` 只准备其中一部分：
 
 ```bash
@@ -45,9 +45,6 @@ bash runs/prepare_data.sh --datasets dclm  # only the named datasets
 ```bash
 TARGET_TOTAL_TOKENS=100000000 bash runs/train.sh
 ```
-
-> 数据准备需要联网，请在联网的 cpu-worker 上先执行一次；训练本身不联网，
-> 但必须在已经准备好数据的机器上运行。
 
 ## 📈 Scaling Law
 
@@ -157,8 +154,7 @@ Chat、验证集评估、QA 评估和 SFT 初始化均可直接使用 Hugging Fa
 
 训练读取 `configs/train.yaml`，评估读取 `configs/eval.yaml`。显式命令行参数
 优先于 YAML 配置。训练长度由 `TARGET_TOTAL_TOKENS` 控制。有效的梯度累积
-会根据 `global_batch_size`、`device_batch_size` 和分布式 world size 自动计算，
-因此 `max_steps` 和 `accumulate_grad_batches` 不是独立的训练控制参数。
+会根据 `global_batch_size`、`device_batch_size` 和分布式 world size 自动计算。
 `training_task` 可设为 `pretrain` 或 `sft`；`dataset` 用于选择预训练语料
 （`dclm`、`climbmix`、`fineweb` 或 `owt`）。输入 embedding 默认参与训练；
 设置 `train_embedding: false` 可将其冻结。
@@ -174,14 +170,7 @@ outputs/<run-name>/
 └── results/
 ```
 
-训练结束后，`checkpoints_hf/` 会保存从最终 checkpoint 导出的 Hugging Face 模型
-（`config.json` + `model.safetensors`）。它不含 tokenizer、也不含自定义建模代码，
-用 `load_checkpoint("<run-dir>/checkpoints_hf", tokenizer_path=...)` 即可读回。导出
-需要 `hf` extra（`uv sync --extra gpu --extra hf`）；若未安装 Transformers，则打印
-一条日志后跳过，原有 `.ckpt` 文件不受影响。
-
-数据和 tokenizer 文件不包含在代码仓库中，需要通过配置或命令行传入路径。
-支持的预训练和 BPB 数据集包括 DCLM、FineWeb、ClimbMix 和 OWT。
+训练结束后，`checkpoints_hf/` 会保存从最终 checkpoint 导出的 Hugging Face 模型。
 
 ## 从 Hugging Face 加载
 

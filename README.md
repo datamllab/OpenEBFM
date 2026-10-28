@@ -48,9 +48,7 @@ uv sync --extra gpu --extra hf --extra web
 source .venv/bin/activate
 ```
 
-Download and tokenize the training data (run once before the first training job;
-requires network). Prepares `climbmix`, `dclm`, and `fineweb` by default; use
-`--datasets` to prepare only a subset:
+Download and tokenize the training data. Prepares `climbmix`, `dclm`, and `fineweb` by default; use `--datasets` to prepare only a subset:
 
 ```bash
 bash runs/prepare_data.sh                  # default: climbmix + dclm + fineweb
@@ -63,8 +61,6 @@ Run a complete training job by setting the token budget:
 TARGET_TOTAL_TOKENS=100000000 bash runs/train.sh
 ```
 
-> Data preparation needs network access, so run it once on a networked
-> cpu-worker. Training itself is offline, but must run where the data is ready.
 
 ## 📈 Scaling Law
 
@@ -178,8 +174,7 @@ Training reads `configs/train.yaml`; evaluation reads `configs/eval.yaml`.
 Explicit command-line arguments take precedence over YAML values. Training
 length is controlled by `TARGET_TOTAL_TOKENS`. The effective gradient
 accumulation is derived from `global_batch_size`, `device_batch_size`, and the
-distributed world size, so `max_steps` and `accumulate_grad_batches` are not
-independent training controls. Set `training_task` to `pretrain` or `sft`, and
+distributed world size. Set `training_task` to `pretrain` or `sft`, and
 select a pretraining corpus with `dataset` (`dclm`, `climbmix`, `fineweb`, or
 `owt`). Input embeddings train by default; set `train_embedding: false` to
 freeze them.
@@ -195,16 +190,7 @@ outputs/<run-name>/
 └── results/
 ```
 
-When training finishes, `checkpoints_hf/` holds a clean Hugging Face model
-(`config.json` + `model.safetensors`) exported from the final checkpoint. It
-contains no tokenizer and no custom modeling code; read it back with
-`load_checkpoint("<run-dir>/checkpoints_hf", tokenizer_path=...)`. The export
-needs the `hf` extra (`uv sync --extra gpu --extra hf`); if Transformers is
-missing it is skipped with a log message and the `.ckpt` files are unaffected.
-
-Data and tokenizer assets are not included in the repository. Pass their
-locations through the configuration or command line. Supported pretraining
-and BPB datasets include DCLM, FineWeb, ClimbMix, and OWT.
+When training finishes, `checkpoints_hf/` holds a clean Hugging Face model exported from the final checkpoint.
 
 ## Load from Hugging Face
 
