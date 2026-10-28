@@ -20,6 +20,7 @@
 
 ## 🎉 更新
 
+- **2026-10-23** — ✨✨ 技术报告发布，见[技术报告](docs/EBFM-technical-report.pdf)。
 - **2026-10-07** — ✨✨ 完整代码库发布。
 
 ## 🚀 快速开始
@@ -35,8 +36,8 @@ source .venv/bin/activate
 `fineweb` 全部三个，用 `--datasets` 只准备其中一部分：
 
 ```bash
-bash runs/prepare_data.sh                  # 默认：climbmix + dclm + fineweb
-bash runs/prepare_data.sh --datasets dclm  # 只准备指定数据集
+bash runs/prepare_data.sh                  # default: climbmix + dclm + fineweb
+bash runs/prepare_data.sh --datasets dclm  # only the named datasets
 ```
 
 设置训练 token 预算后启动完整训练：
@@ -121,15 +122,15 @@ CPU 和 CUDA 的 PyTorch 软件源配置在 `pyproject.toml` 中。每个环境�
 本地 shell 和分布式任务中都能稳定解析相对路径。
 
 ```bash
-# 预训练：训练长度由 TARGET_TOTAL_TOKENS 决定。
+# Pretraining: training length comes from TARGET_TOTAL_TOKENS.
 TARGET_TOTAL_TOKENS=100000000 bash runs/train.sh
 
-# 微调：从 Hugging Face 上发布的模型初始化权重。
+# Fine-tuning: initialize from a published Hugging Face model.
 TARGET_TOTAL_TOKENS=100000000 bash runs/sft.sh \
-  --dataset_name ebfm_sft \
+  --training_task sft \
   --finetuning_model_ckpt guan-wang/EBFM-DCLM-1B
 
-# Position-wise BPB evaluation。
+# Position-wise BPB evaluation.
 MODEL_DIR="$(python -c 'from huggingface_hub import snapshot_download; print(snapshot_download(repo_id="guan-wang/EBFM-DCLM-1B"))')"
 bash runs/eval.sh \
   --checkpoint guan-wang/EBFM-DCLM-1B \
@@ -139,7 +140,7 @@ bash runs/eval.sh \
   --output_root . \
   --run_name eval-dclm
 
-# QA evaluation。
+# QA evaluation.
 bash runs/qa.sh \
   --checkpoint guan-wang/EBFM-DCLM-1B \
   --tokenizer-path "${MODEL_DIR}" \
@@ -147,7 +148,7 @@ bash runs/qa.sh \
   --output_root . \
   --run_name qa-dclm
 
-# 交互式生成。
+# Interactive generation.
 bash runs/chat.sh --checkpoint guan-wang/EBFM-FineWeb-1B-CHAT
 ```
 
@@ -158,6 +159,9 @@ Chat、验证集评估、QA 评估和 SFT 初始化均可直接使用 Hugging Fa
 优先于 YAML 配置。训练长度由 `TARGET_TOTAL_TOKENS` 控制。有效的梯度累积
 会根据 `global_batch_size`、`device_batch_size` 和分布式 world size 自动计算，
 因此 `max_steps` 和 `accumulate_grad_batches` 不是独立的训练控制参数。
+`training_task` 可设为 `pretrain` 或 `sft`；`dataset` 用于选择预训练语料
+（`dclm`、`climbmix`、`fineweb` 或 `owt`）。输入 embedding 默认参与训练；
+设置 `train_embedding: false` 可将其冻结。
 
 每次运行使用相同的输出目录结构：
 
@@ -189,12 +193,10 @@ import torch
 from ebfm.modeling_ebfm import load_checkpoint
 
 model, tokenizer, hparams, device = load_checkpoint(
-    "guan-wang/EBFM-OWT-160M", device="cuda"
+    "guan-wang/EBFM-FineWeb-1B", device="cuda"
 )
 tokens = tokenizer.encode("hello", append=tokenizer.get_bos_token_id())
-input_ids = torch.tensor(
-    [tokens], dtype=torch.long, device=device
-)
+input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
 with torch.no_grad():
     logits = model(input_ids)
 print(logits.shape)
@@ -211,6 +213,8 @@ ebfm/
 ├── configs/                                 # 默认运行配置
 │   ├── eval.yaml                 # 评估默认配置
 │   └── train.yaml                # 预训练默认配置
+├── docs/                                    # 项目文档
+│   └── EBFM-technical-report.pdf             # 技术报告
 ├── ebfm/                                     # 模型、数据和训练库
 │   ├── __init__.py                           # 包初始化
 │   ├── common.py                             # 共享常量和工具函数
@@ -247,9 +251,10 @@ ebfm/
 │   ├── eval.py                   # 评估验证损失和 BPB
 │   ├── export_hf.py              # 将 checkpoint 导出为 Transformers 格式
 │   ├── prepare_data.py           # 构建训练和评估数据
+│   ├── prepare_qa_data.py        # 准备 QA 评估数据
 │   ├── qa.py                     # 评估问答任务集合
 │   ├── sft.py                    # 执行监督微调
-│   └── train.py                  # 执行预训练
+│   └── train.py                  # 执行 EBFM 训练
 ├── tasks/                                   # 评估用数据集和任务适配器
 │   ├── common.py                             # 共享任务接口和工具
 │   ├── customjson.py                         # 加载自定义 JSON 评估任务
@@ -258,16 +263,15 @@ ebfm/
 │   ├── smoltalk.py                           # SmolTalk 对话任务
 │   └── spellingbee.py                        # SpellingBee 拼写生成任务
 ├── tests/                                   # 轻量单元与兼容性测试
-│   ├── test_config_and_boundaries.py        # 检查配置和数据边界
 │   ├── test_dataloader_lightweight_state.py # 检查轻量级数据加载状态
 │   ├── test_dataset_sft_mask.py             # 检查 SFT 损失掩码
 │   ├── test_hf_configuration.py             # 检查 Transformers 配置
 │   └── test_modeling_ebfm_rope.py            # 检查旋转位置嵌入
 ├── .gitignore                                # 忽略本地数据、输出和缓存
+├── LICENSE                                   # MIT 许可证
 ├── pyproject.toml                            # 包元数据和依赖分组
 ├── README.md                                 # 英文项目说明
-├── README_zh.md                              # 简体中文项目说明
-└── uv.lock                                   # 锁定的依赖版本
+└── README_zh.md                              # 简体中文项目说明
 ```
 
 ## 开发

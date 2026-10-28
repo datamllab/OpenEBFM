@@ -13,28 +13,24 @@ import pyarrow.parquet as pq
 from ebfm.common import get_base_dir
 
 
-VALID_BASE_TRAIN_DATASETS = ("fineweb", "climbmix", "dclm", "owt")
+VALID_DATASETS = ("fineweb", "climbmix", "dclm", "owt")
 OWT_VALIDATION_DOCS = 100_000
-DEFAULT_BASE_TRAIN_DATASET = "dclm"
+DEFAULT_DATASET = "dclm"
 
 
-def normalize_base_train_dataset(dataset_name=None):
-    """Return a validated base pretraining dataset name."""
-    dataset_name = (
-        dataset_name
-        or os.environ.get("EBFM_BASE_TRAIN_DATASET")
-        or DEFAULT_BASE_TRAIN_DATASET
-    )
-    dataset_name = str(dataset_name).strip().lower()
-    if dataset_name not in VALID_BASE_TRAIN_DATASETS:
-        valid = ", ".join(VALID_BASE_TRAIN_DATASETS)
+def normalize_dataset(dataset=None):
+    """Return a validated pretraining dataset name."""
+    dataset = dataset or DEFAULT_DATASET
+    dataset = str(dataset).strip().lower()
+    if dataset not in VALID_DATASETS:
+        valid = ", ".join(VALID_DATASETS)
         raise ValueError(
-            f"Unknown base_train_dataset={dataset_name!r}; expected one of: {valid}"
+            f"Unknown dataset={dataset!r}; expected one of: {valid}"
         )
-    return dataset_name
+    return dataset
 
 
-def get_dataset_dir(dataset_name=None, data_dir=None):
+def get_dataset_dir(dataset=None, data_dir=None):
     """
     Return the local parquet directory for a base pretraining dataset.
 
@@ -47,13 +43,13 @@ def get_dataset_dir(dataset_name=None, data_dir=None):
     if data_dir:
         return os.path.abspath(data_dir)
 
-    dataset_name = normalize_base_train_dataset(dataset_name)
-    return os.path.join(get_base_dir(), dataset_name)
+    dataset = normalize_dataset(dataset)
+    return os.path.join(get_base_dir(), dataset)
 
 
-def list_parquet_files(data_dir=None, dataset_name=None):
+def list_parquet_files(data_dir=None, dataset=None):
     """Looks into a data dir and returns full paths to all parquet files."""
-    data_dir = get_dataset_dir(dataset_name=dataset_name, data_dir=data_dir)
+    data_dir = get_dataset_dir(dataset=dataset, data_dir=data_dir)
     if not os.path.isdir(data_dir):
         return []
     parquet_files = sorted(

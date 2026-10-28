@@ -3,9 +3,8 @@ modality: "NLP"
 time_embedding: true
 tokenizer: "ebfm_bpe"
 vocab_size: 32768
-dataset_name: "dclm"
-base_train_dataset: "dclm"
-data_root: "${EBFM_DATA_ROOT:-data}"
+dataset: "dclm"
+data_dir: "${EBFM_DATA_ROOT:-data}"
 ebfm_asset_root: "${EBFM_ASSET_ROOT:-.cache}"
 node_count: 1
 gpus: -1

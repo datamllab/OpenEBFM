@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import random
@@ -53,8 +54,19 @@ except ImportError:
 from ebfm import logger as text_logger
 from ebfm.common import get_base_dir
 from ebfm.disk_aware_checkpoint import DiskAwareCheckpoint, DiskAwareFinalCheckpoint
-from ebfm.config import parse_with_config, print_resolved_config
+from ebfm.config import normalize_training_task, parse_with_config, print_resolved_config
 from ebfm.modeling_ebfm import init_wandb_watch, load_checkpoint, model_sizes
+
+
+def _parse_bool(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off"}:
+        return False
+    raise argparse.ArgumentTypeError("expected true or false")
 
 
 @rank_zero_only
@@ -622,7 +634,7 @@ def set_trainer(
     gradient_clip_val = args.gradient_clip_val if args.gradient_clip_val > 0 else None
     limit_val_batches = 0 if args.overfit_batches > 0 else args.limit_val_batches
     if (
-        getattr(args, "dataset_name", "") == "ebfm_sft"
+        getattr(args, "training_task", "pretrain") == "sft"
         and isinstance(args.val_check_interval, float)
         and args.val_check_interval > 1
         and args.val_check_interval.is_integer()
@@ -642,6 +654,8 @@ def set_trainer(
         num_nodes=args.num_nodes,
         precision=args.float_precision,
         max_steps=args.max_steps,
+        # Show progress only when stdout is interactive.
+        enable_progress_bar=sys.stdout.isatty(),
         logger=wandb_logger,
         enable_model_summary=args.log_model_archi,
         callbacks=callbacks,
@@ -761,6 +775,16 @@ if __name__ == "__main__":
         "--tf_head_type", choices=["direct_unembed"], type=str, default="direct_unembed"
     )
     parser.add_argument("--free_embedding_mcmc", action="store_true", default=False)
+    parser.add_argument(
+        "--train_embedding",
+        nargs="?",
+        const=True,
+        type=_parse_bool,
+        default=True,
+        help="EBT-style: keep the input nn.Embedding attached in the MCMC forwards "
+        "so it receives gradients (the AdamW embedding group becomes live). "
+        "Default True; set train_embedding: false in the config to freeze it.",
+    )
     parser.add_argument("--ebfm_norm", choices=["rms"], type=str, default="rms")
     parser.add_argument("--ebfm_act_func", type=str, default="silu")
     parser.add_argument("--truncate_mcmc", action="store_true", default=False)
@@ -983,18 +1007,24 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--dataset_name", help="training task: dclm or ebfm_sft", default="dclm"
+        "--training_task",
+        dest="training_task",
+        type=normalize_training_task,
+        choices=["pretrain", "sft"],
+        help="training task: pretrain or sft",
+        default="pretrain",
     )
     parser.add_argument(
-        "--base_train_dataset",
-        help="local base pretraining corpus used by the ebfm parquet dataloader",
+        "--dataset",
+        dest="dataset",
+        help="local pretraining corpus used by the parquet dataloader",
         choices=["fineweb", "climbmix", "dclm", "owt"],
-        default=os.environ.get("EBFM_BASE_TRAIN_DATASET", "dclm"),
+        default="dclm",
     )
     parser.add_argument(
-        "--base_train_data_dir",
-        help="optional override for the local parquet directory of --base_train_dataset",
-        default=os.environ.get("EBFM_BASE_TRAIN_DATA_DIR", ""),
+        "--data_dir",
+        help="optional override for the local parquet directory of --dataset",
+        default="",
     )
 
     parser.add_argument("--dataset_dir", help="dataset base directory", default="")

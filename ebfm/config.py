@@ -105,7 +105,6 @@ _ALIASES = {
     "manual_gc_steps": "manual_gc_collect_every_n_steps",
     "matmul_precision": "set_matmul_precision",
     "checkpoint": "checkpoint",
-    "data_root": "data_dir",
 }
 
 _TOKEN_BUDGET_ONLY_KEYS = {
@@ -150,6 +149,17 @@ def _normalise_value(value: Any, current: Any = None) -> Any:
     if isinstance(current, tuple):
         return tuple(value)
     return value
+
+
+def normalize_training_task(value: Any) -> str:
+    """Normalize a supported training task name."""
+
+    task = str(value).strip().lower()
+    if task not in {"pretrain", "sft"}:
+        raise argparse.ArgumentTypeError(
+            "training_task must be 'pretrain' or 'sft'"
+        )
+    return task
 
 
 def resolve_path(value: str | Path, *, repo_root: Path = REPO_ROOT) -> Path:
@@ -332,12 +342,11 @@ def _apply_derived_values(
 ) -> None:
     """Resolve token-budget training quantities that cannot be independently overridden."""
 
-    if "base_train_data_dir" not in explicit and values.get("base_train_data_root"):
-        dataset = values.get("base_train_dataset", values.get("dataset_name", ""))
+    data_root = getattr(args, "data_root", None)
+    if "data_dir" not in explicit and "data_dir" not in values and data_root:
+        dataset = getattr(args, "dataset", None)
         if dataset:
-            args.base_train_data_dir = str(
-                Path(values["base_train_data_root"]) / str(dataset)
-            )
+            args.data_dir = str(Path(data_root) / str(dataset))
 
     world_size = resolve_distributed_shape(args, values, explicit)
 
@@ -412,6 +421,7 @@ def merge_yaml_into_args(
     """Merge YAML values into parsed args while preserving explicit CLI values."""
 
     explicit = _explicit_destinations(parser, argv)
+    values = dict(values)
     if kind == "train":
         derived = sorted(
             key
@@ -427,6 +437,8 @@ def merge_yaml_into_args(
         dest = _ALIASES.get(key, key)
         if dest in explicit:
             continue
+        if kind == "train" and dest == "training_task":
+            value = normalize_training_task(value)
         current = getattr(args, dest, None)
         setattr(args, dest, _normalise_value(value, current))
     if kind == "train":

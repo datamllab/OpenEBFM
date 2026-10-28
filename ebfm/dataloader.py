@@ -24,7 +24,7 @@ from ebfm.pretrain_dataset import (
     get_dataset_dir,
     get_owt_split_ranges,
     list_parquet_files,
-    normalize_base_train_dataset,
+    normalize_dataset,
 )
 
 
@@ -52,7 +52,7 @@ class StatefulBestFitDataLoader:
         buffer_size=1000,
         tokenizer_threads=4,
         tokenizer_batch_size=128,
-        dataset_name="dclm",
+        dataset="dclm",
         data_dir=None,
     ):
         self.tokenizer = tokenizer
@@ -63,9 +63,9 @@ class StatefulBestFitDataLoader:
         self.buffer_size = buffer_size
         self.tokenizer_threads = tokenizer_threads
         self.tokenizer_batch_size = tokenizer_batch_size
-        self.dataset_name = normalize_base_train_dataset(dataset_name)
+        self.dataset = normalize_dataset(dataset)
         self.data_dir = get_dataset_dir(
-            dataset_name=self.dataset_name, data_dir=data_dir
+            dataset=self.dataset, data_dir=data_dir
         )
 
         self.bos_token = tokenizer.get_bos_token_id()
@@ -76,14 +76,14 @@ class StatefulBestFitDataLoader:
         )
 
         all_paths = list_parquet_files(
-            data_dir=self.data_dir, dataset_name=self.dataset_name
+            data_dir=self.data_dir, dataset=self.dataset
         )
         assert len(all_paths) != 0, (
-            f"No parquet files found for base_train_dataset={self.dataset_name!r} "
+            f"No parquet files found for dataset={self.dataset!r} "
             f"in {self.data_dir}. Run `bash runs/prepare_data.sh` "
             "on a networked cpu-worker first."
         )
-        if self.dataset_name == "owt":
+        if self.dataset == "owt":
             owt_ranges = get_owt_split_ranges(all_paths)
             self._parquet_specs = owt_ranges[split]
             self._parquet_paths = [path for path, _, _ in self._parquet_specs]
@@ -94,10 +94,10 @@ class StatefulBestFitDataLoader:
             self._total_docs = None
 
         print(
-            f"[DataLoader] Dataset='{self.dataset_name}' dir='{self.data_dir}' "
+            f"[DataLoader] Dataset='{self.dataset}' dir='{self.data_dir}' "
             f"Split='{split}': Using {len(self._parquet_paths)} parquet file(s)"
         )
-        if self.dataset_name == "owt":
+        if self.dataset == "owt":
             split_docs = sum(end - start for _, start, end in self._parquet_specs)
             print(
                 f"[DataLoader] OWT exact document split: {split_docs} docs "
@@ -131,7 +131,7 @@ class StatefulBestFitDataLoader:
             "epoch": self.next_epoch,
             "doc_batch_index": self.next_doc_batch_index,
             "doc_buffer": [list(doc) for doc in self.doc_buffer],
-            "dataset_name": self.dataset_name,
+            "dataset": self.dataset,
         }
 
     def lightweight_state_dict(self):
@@ -147,7 +147,7 @@ class StatefulBestFitDataLoader:
             "rg_idx": self.next_rg_idx,
             "epoch": self.next_epoch,
             "doc_batch_index": self.next_doc_batch_index,
-            "dataset_name": self.dataset_name,
+            "dataset": self.dataset,
         }
 
     def _apply_resume_state(self, state):
@@ -362,7 +362,7 @@ def tokenizing_distributed_data_loader_with_state_bos_bestfit(
     tokenizer_batch_size=128,
     device="cuda",
     resume_state_dict=None,
-    dataset_name="dclm",
+    dataset="dclm",
     data_dir=None,
     buffer_size=1000,
 ):
@@ -381,7 +381,7 @@ def tokenizing_distributed_data_loader_with_state_bos_bestfit(
         buffer_size=buffer_size,
         tokenizer_threads=tokenizer_threads,
         tokenizer_batch_size=tokenizer_batch_size,
-        dataset_name=dataset_name,
+        dataset=dataset,
         data_dir=data_dir,
     )
     yield from loader

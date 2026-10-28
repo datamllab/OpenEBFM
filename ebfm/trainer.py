@@ -32,6 +32,12 @@ def _sft_trainer_debug(message):
     print(f"[EBFM SFT Trainer][rank={rank} local={local_rank}] {message}", flush=True)
 
 
+def _get_training_task(hparams):
+    """Read the configured training task."""
+
+    return getattr(hparams, "training_task", "pretrain")
+
+
 class ModelTrainer(LightningModule):
     def __init__(self, hparams, trained_model=None):
         super().__init__()
@@ -417,15 +423,11 @@ class ModelTrainer(LightningModule):
 
     def on_validation_epoch_start(self):
         """Reset validation accumulators at the start of each validation epoch."""
-        dataset_name = getattr(
-            self.hparams,
-            "base_train_dataset",
-            getattr(self.hparams, "dataset_name", ""),
-        )
+        dataset = getattr(self.hparams, "dataset", "dclm")
         monitor_name = getattr(self.hparams, "checkpoint_monitor_string", "")
 
         self._strict_valid_ppl = (
-            dataset_name == "owt" or monitor_name == "valid_perplexity"
+            dataset == "owt" or monitor_name == "valid_perplexity"
         )
         self._val_loss_sum = None
         self._val_loss_tokens = None
@@ -974,14 +976,13 @@ class ModelTrainer(LightningModule):
             if hasattr(self.hparams, "tokenizer_obj")
             else self.hparams.tokenizer
         )
-        base_train_dataset = getattr(self.hparams, "base_train_dataset", "dclm")
-        base_train_data_dir = getattr(self.hparams, "base_train_data_dir", "")
-        base_train_data_dir = base_train_data_dir or None
+        dataset = getattr(self.hparams, "dataset", "dclm")
+        data_dir = getattr(self.hparams, "data_dir", "") or None
 
         resume_state = getattr(self, "_dataloader_resume_state", None)
         self._dataloader_resume_state = None
 
-        if getattr(self.hparams, "dataset_name", "ebfm") == "ebfm_sft":
+        if _get_training_task(self.hparams) == "sft":
             _sft_trainer_debug(
                 f"train_dataloader_start batch_size={self.hparams.batch_size_per_device} "
                 f"max_len={self.hparams.context_length} max_iter={self.hparams.max_steps * self.hparams.accumulate_grad_batches}"
@@ -1005,8 +1006,8 @@ class ModelTrainer(LightningModule):
                 split="train",
                 device=self.device,
                 resume_state_dict=resume_state,
-                base_train_dataset=base_train_dataset,
-                base_train_data_dir=base_train_data_dir,
+                dataset=dataset,
+                data_dir=data_dir,
             )
         return train_dataloader
 
@@ -1017,11 +1018,10 @@ class ModelTrainer(LightningModule):
             if hasattr(self.hparams, "tokenizer_obj")
             else self.hparams.tokenizer
         )
-        base_train_dataset = getattr(self.hparams, "base_train_dataset", "dclm")
-        base_train_data_dir = getattr(self.hparams, "base_train_data_dir", "")
-        base_train_data_dir = base_train_data_dir or None
+        dataset = getattr(self.hparams, "dataset", "dclm")
+        data_dir = getattr(self.hparams, "data_dir", "") or None
 
-        if getattr(self.hparams, "dataset_name", "ebfm") == "ebfm_sft":
+        if _get_training_task(self.hparams) == "sft":
             _sft_trainer_debug(
                 f"val_dataloader_start batch_size={self.hparams.batch_size_per_device} "
                 f"max_len={self.hparams.context_length} max_iter={self.hparams.val_steps}"
@@ -1044,8 +1044,8 @@ class ModelTrainer(LightningModule):
                 split="val",
                 device=self.device,
                 resume_state_dict=None,
-                base_train_dataset=base_train_dataset,
-                base_train_data_dir=base_train_data_dir,
+                dataset=dataset,
+                data_dir=data_dir,
             )
 
         return val_dataloader

@@ -1040,10 +1040,15 @@ class EBFM_NLP(_EBFMModule):
     ):
         """Run the paper's one gradient update outside a compiled graph."""
 
-        predicted_tokens = predicted_tokens.detach().requires_grad_()
-        all_embeddings = torch.cat(
-            (real_embeddings_input.detach(), predicted_tokens), dim=1
+        # Attach context embeddings only during enabled embedding training.
+        train_embedding = (
+            bool(getattr(self.hparams, "train_embedding", True)) and learning
         )
+        ctx_embeddings = (
+            real_embeddings_input if train_embedding else real_embeddings_input.detach()
+        )
+        predicted_tokens = predicted_tokens.detach().requires_grad_()
+        all_embeddings = torch.cat((ctx_embeddings, predicted_tokens), dim=1)
 
         transformer = getattr(self, "transformer_eager", self.transformer)
         energy_preds = transformer(
@@ -1074,9 +1079,7 @@ class EBFM_NLP(_EBFMModule):
 
         pred_hidden = None
         if compute_pred_hidden:
-            post_embeddings = torch.cat(
-                (real_embeddings_input.detach(), predicted_tokens), dim=1
-            )
+            post_embeddings = torch.cat((ctx_embeddings, predicted_tokens), dim=1)
             _, pred_hidden = transformer(
                 post_embeddings,
                 start_pos=start_pos,

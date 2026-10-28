@@ -35,7 +35,7 @@
 
 ## 🎉 Updates
 
-- **2026-10-23** — ✨✨ Technical report released. See [[report]](https://github.com/datamllab/OpenEBFM/blob/main/docs/EBFM-technical-report.pdf).
+- **2026-10-23** — ✨✨ Technical report released. See the [technical report](docs/EBFM-technical-report.pdf).
 - **2026-10-07** — ✨✨ Full codebase released.
 
 
@@ -145,7 +145,7 @@ TARGET_TOTAL_TOKENS=100000000 bash runs/train.sh
 
 # Fine-tuning: initialize from a published Hugging Face model.
 TARGET_TOTAL_TOKENS=100000000 bash runs/sft.sh \
-  --dataset_name ebfm_sft \
+  --training_task sft \
   --finetuning_model_ckpt guan-wang/EBFM-DCLM-1B
 
 # Position-wise BPB evaluation.
@@ -179,7 +179,10 @@ Explicit command-line arguments take precedence over YAML values. Training
 length is controlled by `TARGET_TOTAL_TOKENS`. The effective gradient
 accumulation is derived from `global_batch_size`, `device_batch_size`, and the
 distributed world size, so `max_steps` and `accumulate_grad_batches` are not
-independent training controls.
+independent training controls. Set `training_task` to `pretrain` or `sft`, and
+select a pretraining corpus with `dataset` (`dclm`, `climbmix`, `fineweb`, or
+`owt`). Input embeddings train by default; set `train_embedding: false` to
+freeze them.
 
 Every run uses the same output layout:
 
@@ -234,6 +237,8 @@ ebfm/
 ├── configs/                                 # Default run configurations
 │   ├── eval.yaml                 # Evaluation defaults
 │   └── train.yaml                # Pretraining defaults
+├── docs/                                    # Project documents
+│   └── EBFM-technical-report.pdf             # Technical report
 ├── ebfm/                                    # Model, data, and training library
 │   ├── __init__.py                           # Package initialization
 │   ├── common.py                             # Shared constants and utilities
@@ -270,9 +275,10 @@ ebfm/
 │   ├── eval.py                   # Evaluate validation loss and BPB
 │   ├── export_hf.py              # Export a checkpoint to Transformers format
 │   ├── prepare_data.py           # Build training and evaluation data
+│   ├── prepare_qa_data.py        # Prepare QA evaluation data
 │   ├── qa.py                     # Evaluate QA task suites
 │   ├── sft.py                    # Run supervised fine-tuning
-│   └── train.py                  # Run pretraining
+│   └── train.py                  # Train EBFM models
 ├── tasks/                                   # Dataset/task adapters for evaluation
 │   ├── common.py                             # Shared task interfaces and helpers
 │   ├── customjson.py                         # Load custom JSON evaluation tasks
@@ -281,16 +287,15 @@ ebfm/
 │   ├── smoltalk.py                           # SmolTalk conversation task
 │   └── spellingbee.py                        # SpellingBee word-generation task
 ├── tests/                                   # Lightweight unit and compatibility tests
-│   ├── test_config_and_boundaries.py       # Validate config and data boundaries
 │   ├── test_dataloader_lightweight_state.py # Check lightweight loader state
 │   ├── test_dataset_sft_mask.py            # Check SFT loss masking
 │   ├── test_hf_configuration.py            # Check Transformers configuration
 │   └── test_modeling_ebfm_rope.py           # Check rotary embeddings
 ├── .gitignore                                # Excludes local data, outputs, and caches
+├── LICENSE                                   # MIT license
 ├── pyproject.toml                            # Package metadata and dependency groups
 ├── README.md                                 # English project guide
-├── README_zh.md                              # Simplified Chinese project guide
-└── uv.lock                                   # Locked dependency versions
+└── README_zh.md                              # Simplified Chinese project guide
 ```
 
 ## Development

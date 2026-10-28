@@ -31,7 +31,7 @@ lightning_logs/
 *.bin
 .env
 .env.*
-data/
+/data
 
 # Cluster resource submitters are local infrastructure, not public runs.
 rjob/
@@ -45,3 +45,5 @@ next.md
 
 # Local release helper; keep credentials and staging logic out of GitHub.
 publish_openesm.sh
+
+uv.lock

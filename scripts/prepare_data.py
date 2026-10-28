@@ -408,11 +408,11 @@ def write_manifest(out_dir: Path, manifest: dict) -> None:
 
 
 def prepare_dataset(
-    args: argparse.Namespace, dataset_name: str, tokenizer, bos: int
+    args: argparse.Namespace, dataset: str, tokenizer, bos: int
 ) -> None:
     repo_root = args.repo_root.resolve()
     data_root = repo_root / "data"
-    out_dir = data_root / dataset_name
+    out_dir = data_root / dataset
     sources_dir = out_dir / "_sources"
     hf_cache_dir = args.hf_cache_dir or (data_root / "hf_cache")
     target_with_margin = int(args.target_tokens * (1.0 + args.margin))
@@ -429,11 +429,11 @@ def prepare_dataset(
             and int(manifest.get("total_tokens", 0)) >= args.target_tokens
         ):
             log(
-                f"{dataset_name}: existing complete manifest has {manifest['total_tokens']:,} tokens; skipping"
+                f"{dataset}: existing complete manifest has {manifest['total_tokens']:,} tokens; skipping"
             )
             return
         raise RuntimeError(
-            f"{dataset_name}: incomplete existing manifest found at {manifest_path}; rerun with --force"
+            f"{dataset}: incomplete existing manifest found at {manifest_path}; rerun with --force"
         )
 
     if args.force:
@@ -450,7 +450,7 @@ def prepare_dataset(
         compression=args.parquet_compression,
     )
     manifest: dict = {
-        "dataset": dataset_name,
+        "dataset": dataset,
         "target_tokens": args.target_tokens,
         "target_tokens_with_margin": target_with_margin,
         "total_tokens": 0,
@@ -462,7 +462,7 @@ def prepare_dataset(
 
     total_tokens = 0
     input_files_seen = 0
-    selected_specs = DATASET_REPOS[dataset_name]
+    selected_specs = DATASET_REPOS[dataset]
     try:
         for spec in selected_specs:
             if spec.tokenized_gpt2 and not args.allow_tokenized_climbmix:
@@ -476,7 +476,7 @@ def prepare_dataset(
             for remote_path in remote_files:
                 if args.max_input_files and input_files_seen >= args.max_input_files:
                     log(
-                        f"{dataset_name}: stopping early because --max-input-files={args.max_input_files}"
+                        f"{dataset}: stopping early because --max-input-files={args.max_input_files}"
                     )
                     break
                 check_free_space(data_root, args.min_free_gb)
@@ -522,7 +522,7 @@ def prepare_dataset(
                 )
                 write_manifest(out_dir, manifest)
                 log(
-                    f"{dataset_name}: processed {spec.repo_id}:{remote_path} "
+                    f"{dataset}: processed {spec.repo_id}:{remote_path} "
                     f"docs={file_docs:,} file_tokens={file_tokens:,} total_tokens={total_tokens:,}"
                 )
                 if total_tokens >= target_with_margin:
@@ -536,7 +536,7 @@ def prepare_dataset(
 
     if total_tokens < args.target_tokens:
         raise RuntimeError(
-            f"{dataset_name}: stopped after {total_tokens:,} tokens, below target {args.target_tokens:,}. "
+            f"{dataset}: stopped after {total_tokens:,} tokens, below target {args.target_tokens:,}. "
             "Check repo availability or increase --max-input-files."
         )
 
@@ -548,7 +548,7 @@ def prepare_dataset(
     manifest["disk_bytes"] = bytes_in_tree(out_dir)
     write_manifest(out_dir, manifest)
     log(
-        f"{dataset_name}: complete tokens={total_tokens:,} docs={writer.total_docs:,} "
+        f"{dataset}: complete tokens={total_tokens:,} docs={writer.total_docs:,} "
         f"shards={writer.shard_index:,} disk={format_gib(manifest['disk_bytes'])}"
     )
 
@@ -583,11 +583,11 @@ def load_manifest(manifest_path: Path) -> dict:
 
 
 def validate_existing_dataset(
-    out_dir: Path, dataset_name: str, manifest: dict
+    out_dir: Path, dataset: str, manifest: dict
 ) -> tuple[int, int, list[int]]:
-    if manifest.get("dataset") != dataset_name:
+    if manifest.get("dataset") != dataset:
         raise RuntimeError(
-            f"Manifest dataset={manifest.get('dataset')!r}, expected {dataset_name!r}"
+            f"Manifest dataset={manifest.get('dataset')!r}, expected {dataset!r}"
         )
     if not manifest.get("complete"):
         raise RuntimeError(
@@ -627,8 +627,8 @@ def validate_existing_dataset(
     return total_tokens, int(manifest.get("total_docs", 0)), shard_token_counts
 
 
-def selected_specs(dataset_name: str, allow_tokenized_climbmix: bool):
-    for spec in DATASET_REPOS[dataset_name]:
+def selected_specs(dataset: str, allow_tokenized_climbmix: bool):
+    for spec in DATASET_REPOS[dataset]:
         if spec.tokenized_gpt2 and not allow_tokenized_climbmix:
             log(
                 f"Skipping tokenized fallback {spec.repo_id}; pass --allow-tokenized-climbmix to enable it"
@@ -919,8 +919,8 @@ def main() -> None:
     log(f"target_tokens={args.target_tokens:,}; margin={args.margin:.2%}")
     log(f"effective_stop_tokens={int(args.target_tokens * (1.0 + args.margin)):,}")
     tokenizer = bos = None
-    for dataset_name in args.datasets:
-        if dataset_name == "fineweb":
+    for dataset in args.datasets:
+        if dataset == "fineweb":
             # FineWeb-Edu shards are already in the target layout, so they only
             # need downloading (no repackaging or token budgeting).
             from ebfm.dataset import FINEWEB_DEFAULT_SHARDS, download_fineweb
@@ -933,7 +933,7 @@ def main() -> None:
             continue
         if tokenizer is None:
             tokenizer, bos = load_tokenizer(args.repo_root)
-        prepare_dataset(args, dataset_name, tokenizer, bos)
+        prepare_dataset(args, dataset, tokenizer, bos)
     data_root = args.repo_root / "data"
     log(f"Final data dir size: {format_gib(bytes_in_tree(data_root))} at {data_root}")
 

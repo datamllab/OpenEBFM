@@ -456,7 +456,7 @@ def collect_eval_batches(
                 context_length,
                 split,
                 device=str(device),
-                dataset_name=dataset,
+                dataset=dataset,
                 data_dir=str(data_dir) if data_dir is not None else None,
             )
             for _ in range(eval_batches):

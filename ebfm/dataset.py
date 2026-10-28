@@ -31,8 +31,8 @@ class IterableDataset(_IterableDataset):
         max_iter,
         device="cuda",
         resume_state_dict=None,
-        base_train_dataset="dclm",
-        base_train_data_dir=None,
+        dataset="dclm",
+        data_dir=None,
     ):
         super().__init__()
 
@@ -43,8 +43,8 @@ class IterableDataset(_IterableDataset):
         self.max_iter = max_iter
         self.device = device
         self.resume_state_dict = resume_state_dict
-        self.base_train_dataset = base_train_dataset
-        self.base_train_data_dir = base_train_data_dir
+        self.dataset = dataset
+        self.data_dir = data_dir
         self.batch_idx = 0
         self.last_state_dict = None
         self._stateful_loader = None
@@ -57,8 +57,8 @@ class IterableDataset(_IterableDataset):
             split=self.split,
             device=self.device,
             resume_state_dict=self.resume_state_dict,
-            dataset_name=self.base_train_dataset,
-            data_dir=self.base_train_data_dir,
+            dataset=self.dataset,
+            data_dir=self.data_dir,
         )
         for inputs, targets, state_dict in self._stateful_loader:
             self.last_state_dict = state_dict
@@ -82,11 +82,11 @@ def generate_dataloader(
     split,
     device,
     resume_state_dict=None,
-    base_train_dataset="dclm",
-    base_train_data_dir=None,
+    dataset="dclm",
+    data_dir=None,
 ):
 
-    dataset = IterableDataset(
+    iterable_dataset = IterableDataset(
         tokenizer=tokenizer,
         batch_size=batch_size,
         max_len=max_len,
@@ -94,12 +94,12 @@ def generate_dataloader(
         max_iter=max_iter,
         device=device,
         resume_state_dict=resume_state_dict,
-        base_train_dataset=base_train_dataset,
-        base_train_data_dir=base_train_data_dir,
+        dataset=dataset,
+        data_dir=data_dir,
     )
 
     dataloader = DataLoader(
-        dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
+        iterable_dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
     )
     return dataloader
 
@@ -125,9 +125,9 @@ def fineweb_filename(index):
 
 
 def fineweb_dir(data_dir=None):
-    """Directory the loader expects for ``base_train_dataset=fineweb``.
+    """Directory the loader expects for ``dataset=fineweb``.
 
-    Defaults to ``<repo>/data/fineweb`` to match ``base_train_data_root: data``
+    Defaults to ``<repo>/data/fineweb`` to match ``data_root: data``
     in ``configs/train.yaml``.
     """
 

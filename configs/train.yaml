@@ -6,10 +6,9 @@ time_embedding: true
 tokenizer: "ebfm_bpe"
 vocab_size: 32768
 
-dataset_name: "dclm"
-dataset_arg_name: "ebfm"
-base_train_dataset: "dclm"
-base_train_data_root: "${EBFM_DATA_ROOT:-data}"
+training_task: "pretrain"
+dataset: "dclm"
+data_root: "${EBFM_DATA_ROOT:-data}"
 ebfm_asset_root: "${EBFM_ASSET_ROOT:-.cache}"
 
 node_count: 1
@@ -33,6 +32,7 @@ mcmc_step_size_learnable: true
 tf_head_type: "direct_unembed"
 use_tf_head: true
 free_embedding_mcmc: true
+train_embedding: true
 pretokenize_dataset: true
 
 peak_learning_rate: 0.0012
