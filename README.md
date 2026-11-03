@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.alphaxiv.org/abs/2610.openesm"><img src="https://img.shields.io/badge/arXiv-2610.openesm-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"/></a>
+  <a href="https://arxiv.org/pdf/2610.33005"><img src="https://img.shields.io/badge/arXiv-2610.openesm-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"/></a>
   <a href="https://github.com/datamllab/openebfm"><img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/></a>
   <a href="https://huggingface.co/collections/guan-wang/openebfm"><img src="https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace"/></a>
 </p>
@@ -300,11 +300,11 @@ python -m scripts.chat --help
 If you found this work helpful, please star and cite this work:
 
 ```bibtex
-@misc{pu-openesm-energy-steered-models,
-  author = {Pu, Yuan and Lu, Yudong and Wang, Ting and Hong, Zhicong and Li, Qinuo and Wu, Xuansheng and Zou, Na and Hu, Xia and Wang, Guanchu},
-  keywords = {Computation and Language (cs.CL), Machine Learning (cs.LG), Energy-Based Models, Foundation Models, Language Modeling, Energy Steering, Scaling},
-  title = {OpenESM: Energy-Steered Models Are Scalable Foundation Learners},
-  publisher = {arXiv}
+@article{pu2026openesm,
+  title={OpenESM: Energy-Steered Models Are Scalable Foundation Learners},
+  author={Pu, Yuan and Lu, Yudong and Wang, Ting and Hong, Zhicong and Li, Qinuo and Wu, Xuansheng and Zou, Na and Hu, Xia and Wang, Guanchu},
+  journal={arXiv preprint arXiv:2610.33005},
+  year={2026}
 }
 ```
 
